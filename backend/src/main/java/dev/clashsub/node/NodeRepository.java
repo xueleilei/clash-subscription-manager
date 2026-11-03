@@ -38,6 +38,16 @@ public class NodeRepository {
         sources.require(owner, source);
         return mapper.source(owner.toString(), source.toString()).stream().map(this::decode).toList();
     }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int cleanTombstoneSecrets(UUID owner, java.time.Instant cutoff) {
+        int count = 0;
+        for (var row : mapper.oldTombstones(owner.toString(), cutoff)) {
+            var node = decode(row); if (node.connection().isEmpty() && node.dialerRef() == null) { continue; }
+            var identity = new NodeSpec(node.id(), node.sourceId(), node.originalName(), node.protocol(), tools.jackson.databind.node.JsonNodeFactory.instance.objectNode(), null);
+            count += mapper.wipeTombstone(owner.toString(), row.id(), documents.write(identity, context(owner.toString(), row.id())));
+        }
+        return count;
+    }
     public Page<NodeSummary> list(UUID owner, NodeQuery query) {
         if (query.page() < 1 || query.page() > 100_000 || query.size() < 1 || query.size() > 200) { throw ApiException.invalid("分页参数不正确"); }
         String source = query.sourceId() == null ? null : query.sourceId().toString();

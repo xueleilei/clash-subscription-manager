@@ -20,6 +20,10 @@ public class SourceRepository {
         if (row == null) { throw ApiException.missing(); }
         return row;
     }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public SourceDO lock(UUID owner, UUID id) {
+        var row = mapper.lock(owner.toString(), id.toString()); if (row == null) { throw ApiException.missing(); } return row;
+    }
     public SourceRequest request(SourceDO row) { return documents.read(row.requestCipher(), context(row.ownerId(), row.id()), SourceRequest.class); }
     public String encrypt(UUID owner, UUID id, SourceRequest request) { return documents.write(request, context(owner.toString(), id.toString())); }
     @Transactional(propagation = Propagation.MANDATORY)

@@ -17,6 +17,10 @@ public interface RefreshMapper {
     int finish(@Param("owner") String owner, @Param("id") String id, @Param("status") String status, @Param("cipher") String cipher);
     @Update("UPDATE refresh_attempt SET status='RUNNING',config_version=#{config},snapshot_version=#{snapshot} WHERE owner_id=#{owner} AND id=#{id} AND status IN ('QUEUED','RUNNING')")
     int running(@Param("owner") String owner, @Param("id") String id, @Param("config") long config, @Param("snapshot") long snapshot);
+    @Select("SELECT status FROM refresh_attempt WHERE owner_id=#{owner} AND id=#{id} AND status='RUNNING' AND (lease_until IS NULL OR lease_until>#{now}) FOR UPDATE")
+    String lockRunning(@Param("owner") String owner, @Param("id") String id, @Param("now") java.time.Instant now);
+    @Select("SELECT lease_until FROM refresh_attempt WHERE owner_id=#{owner} AND id=#{id}")
+    java.time.Instant deadline(@Param("owner") String owner, @Param("id") String id);
     @Select("SELECT " + DECISION + " FROM pending_empty_decision WHERE owner_id=#{owner} AND id=#{id}")
     EmptyDecisionDO decision(@Param("owner") String owner, @Param("id") String id);
     @Select("SELECT " + DECISION + " FROM pending_empty_decision WHERE owner_id=#{owner} AND source_id=#{source} AND config_version=#{config} AND snapshot_version=#{snapshot} AND candidate_digest=#{digest} AND state IN ('PENDING','KEPT') ORDER BY create_time DESC LIMIT 1")

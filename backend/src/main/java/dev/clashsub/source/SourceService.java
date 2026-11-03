@@ -33,7 +33,7 @@ public class SourceService {
         String name = command.name() == null && previous != null ? previous.name() : command.name();
         if (name == null || name.isBlank() || name.length() > 128) { throw ApiException.invalid("来源名称必须为 1–128 个字符"); }
         int interval = command.refreshIntervalSeconds() == null ? (previous == null ? 21_600 : previous.refreshIntervalSeconds()) : command.refreshIntervalSeconds();
-        if (interval < 60 || interval > 31 * 86_400) { throw ApiException.invalid("刷新周期必须为 60 秒到 31 天"); }
+        if (interval < 300 || interval > 31 * 86_400) { throw ApiException.invalid("刷新周期必须为 300 秒到 31 天"); }
         var request = new SourceRequest(command.url() == null ? old.url() : command.url(), command.headers() == null ? old.headers() : command.headers(),
                 command.userAgent() == null ? old.userAgent() : command.userAgent(), command.outboundProxy() == null ? old.outboundProxy() : command.outboundProxy());
         try { SourceRequestValidator.validate(request); }

@@ -293,17 +293,17 @@
 
 **Interfaces:** `RefreshTaskRunner.enqueue(UUID ownerId, UUID sourceId, Trigger trigger): TaskView`；`RefreshScheduler.dispatchDue(Instant now): int`；`RetentionService.clean(Instant now): RetentionResult`。POST `/api/v1/sources/{id}/refresh`、`/sources/refresh-all`；GET `/tasks/{id}`、`/sources/{id}/history`、`/empty-decisions`；POST `/empty-decisions/{id}/decision`。
 
-- [ ] 写红灯：默认 21,600 秒；同来源重复触发返回同活跃任务；暂停只禁自动刷新；多个来源独立成败；重启过期只补一次；中断的 RUNNING 任务可恢复，不重复提交；任务结果错误全部脱敏。
+- [x] 写红灯：默认 21,600 秒；同来源重复触发返回同活跃任务；暂停只禁自动刷新；多个来源独立成败；重启过期只补一次；中断的 RUNNING 任务可恢复，不重复提交；任务结果错误全部脱敏。
   ~~~java
   assertThat(enqueue(source).id()).isEqualTo(enqueue(source).id());
   assertThat(dispatchDue(afterLongDowntime)).isEqualTo(1);
   assertThat(currentSnapshotAfterPause).isEqualTo(snapshotBeforePause);
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dit.test=RefreshSchedulingIT,RetentionIT verify`，确认红灯。
-- [ ] V6 为来源记录 next_run_at、active_attempt_id、任务租约/状态；Clock 可注入。4 个 worker、队列 64、同来源串行；队列满返回已有/待调度状态，不能丢任务；运行超过总超时释放并记失败。周期可配置，最小 300 秒，默认 21,600 秒。
-- [ ] 清理默认保留最近 30 天尝试及每方案 100 个历史 release，当前指针/待确认/历史 release 使用的 source snapshot 不删除；最近历史不足时也能正常运行。历史敏感载荷加密，清理可重复执行；向界面提供差异计数、REJECT 回退、空组及错误定位。
-- [ ] 同命令通过；用虚拟时钟和重建应用上下文验证恢复，不以长时间等待替代断言。
-- [ ] 提交：`feat: schedule recoverable refresh jobs and expose change history`。
+- [x] 运行 `./scripts/mvn.sh -Dit.test=RefreshSchedulingIT,RetentionIT verify`，确认红灯。
+- [x] V6 为来源记录 next_run_at、active_attempt_id、任务租约/状态；Clock 可注入。4 个 worker、队列 64、同来源串行；队列满返回已有/待调度状态，不能丢任务；运行超过总超时释放并记失败。周期可配置，最小 300 秒，默认 21,600 秒。
+- [x] 清理默认保留最近 30 天尝试及每方案 100 个历史 release，当前指针/待确认/历史 release 使用的 source snapshot 不删除；最近历史不足时也能正常运行。历史敏感载荷加密，清理可重复执行；向界面提供差异计数、REJECT 回退、空组及错误定位。
+- [x] 同命令通过；用虚拟时钟和重建应用上下文验证恢复，不以长时间等待替代断言。
+- [x] 提交：`feat: schedule recoverable refresh jobs and expose change history`。
 
 ## Task 13: 完整 YAML 导入、本地节点绑定与来源删除
 

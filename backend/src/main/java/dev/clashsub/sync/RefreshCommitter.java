@@ -23,7 +23,7 @@ public class RefreshCommitter {
     }
     @Transactional public CommitResult commit(RefreshProposal proposal) {
         var snapshot = proposal.before(); UUID owner = snapshot.ownerId(), source = UUID.fromString(proposal.source().id());
-        revisions.compareAndIncrement(owner, snapshot.dataRevision()); state.assertSource(owner, proposal.source());
+        revisions.compareAndIncrement(owner, snapshot.dataRevision()); sources.lock(owner, source); state.assertRunning(owner, proposal.attemptId()); state.assertSource(owner, proposal.source());
         if (proposal.decisionId() != null) { state.assertPending(owner, proposal.decisionId(), proposal.source()); state.markDecision(owner, proposal.decisionId(), "CLEARED"); }
         // Verify all inputs after taking the owner revision lock, before making any effective change.
         var currentSources = sources.list(owner);

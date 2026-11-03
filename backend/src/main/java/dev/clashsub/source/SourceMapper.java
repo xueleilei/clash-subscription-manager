@@ -11,6 +11,8 @@ public interface SourceMapper {
     List<SourceDO> list(String owner);
     @Select("SELECT " + COLUMNS + " FROM subscription_source WHERE owner_id=#{owner} AND id=#{id}")
     SourceDO find(@Param("owner") String owner, @Param("id") String id);
+    @Select("SELECT " + COLUMNS + " FROM subscription_source WHERE owner_id=#{owner} AND id=#{id} FOR UPDATE")
+    SourceDO lock(@Param("owner") String owner, @Param("id") String id);
     @Insert("INSERT INTO subscription_source(id,owner_id,name,config_version,snapshot_version,is_enabled,refresh_interval_seconds,input_format,request_cipher,sync_status,next_refresh_time) VALUES(#{id},#{ownerId},#{name},#{configVersion},#{snapshotVersion},#{enabled},#{refreshIntervalSeconds},#{inputFormat},#{requestCipher},#{syncStatus},#{nextRefreshTime})")
     int insert(SourceDO row);
     @Update("UPDATE subscription_source SET name=#{row.name}, config_version=config_version+1, is_enabled=#{row.enabled}, refresh_interval_seconds=#{row.refreshIntervalSeconds}, input_format=#{row.inputFormat}, request_cipher=#{row.requestCipher}, next_refresh_time=#{row.nextRefreshTime}, sync_status='PENDING' WHERE owner_id=#{row.ownerId} AND id=#{row.id} AND config_version=#{expected}")

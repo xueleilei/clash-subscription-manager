@@ -29,6 +29,7 @@ public abstract class MySqlIntegrationTest {
         properties.add("clash.mihomo.executable", () -> root.resolve(".cache/mihomo/" + platform + "/mihomo").toString());
         properties.add("clash.mihomo.resources", () -> root.resolve(".cache/mihomo/resources").toString());
         properties.add("clash.public-base-url", () -> "https://fixture.example.invalid");
+        properties.add("clash.scheduling.enabled", () -> false);
     }
     private static Path secret(byte[] bytes) {
         try { var path = Files.createTempFile("clash-fixture-", ".secret"); Files.write(path, bytes); path.toFile().deleteOnExit(); return path; }

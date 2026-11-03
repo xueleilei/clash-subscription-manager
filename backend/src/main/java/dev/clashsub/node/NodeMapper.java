@@ -26,4 +26,8 @@ public interface NodeMapper {
     int markSnapshot(@Param("owner") String owner, @Param("source") String source, @Param("version") long version);
     @Update("UPDATE node SET is_active=0 WHERE owner_id=#{owner} AND source_id=#{source} AND id=#{id}")
     int delete(@Param("owner") String owner, @Param("source") String source, @Param("id") String id);
+    @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND is_active=0 AND update_time<#{cutoff}")
+    List<NodeDO> oldTombstones(@Param("owner") String owner, @Param("cutoff") java.time.Instant cutoff);
+    @Update("UPDATE node SET connection_cipher=#{cipher} WHERE owner_id=#{owner} AND id=#{id} AND is_active=0")
+    int wipeTombstone(@Param("owner") String owner, @Param("id") String id, @Param("cipher") String cipher);
 }

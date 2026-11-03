@@ -50,6 +50,7 @@ class AuthenticationIT {
         properties.add("clash.admin.password-file", PASSWORD_FILE::toString);
         properties.add("clash.encryption-key-file", KEY_FILE::toString);
         properties.add("server.servlet.session.cookie.secure", () -> false);
+        properties.add("clash.scheduling.enabled", () -> false);
     }
 
     @LocalServerPort int port;
@@ -113,7 +114,7 @@ class AuthenticationIT {
                         "--spring.datasource.password=" + MYSQL.getPassword(),
                         "--clash.admin.username=do-not-replace-admin",
                         "--clash.admin.password-file=/missing-bootstrap-secret",
-                        "--clash.encryption-key-file=" + KEY_FILE)) {
+                        "--clash.encryption-key-file=" + KEY_FILE, "--clash.scheduling.enabled=false")) {
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_user", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("SELECT password_hash FROM app_user WHERE username = ?", String.class, USERNAME))
                     .isEqualTo(before);
