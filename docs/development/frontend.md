@@ -19,3 +19,5 @@
 验证：`pnpm --dir frontend exec playwright install chromium --only-shell`，`pnpm --dir frontend test --run`，`pnpm --dir frontend typecheck`，`pnpm --dir frontend build`。组件测试使用 Vitest + Playwright 的真实 Chromium 环境，不以模拟 DOM 代替焦点和事件行为。配置依据 [Vitest Browser Mode](https://vitest.dev/guide/browser/)。
 
 敏感数据不写 localStorage、sessionStorage、IndexedDB 或 URL。会话过期保留内存工作副本；刷新整个页面会丢失尚未保存的输入。返回 409 时保留用户输入并要求处理版本差异，不能后台覆盖或自动重发写入。
+
+三栏工作台的边界：`WorkspaceView` 只组合页面和动作；`useProfileDraft` 管理按 owner/profile 隔离的内存草稿及版本；`useNodeSelection` 持有候选节点选择。`GroupList` 接收 groups/selectedId 并发出 select/create/edit；`GroupMemberList` 接收 group/节点与组名称索引，发出 remove/reorder；`NodePicker` 接收节点、disabledIds/selectedIds，发出 toggle/add。`GroupEditorDialog` 提交完整组定义；`ConflictDialog` 提供明确的重读或保留编辑动作。候选节点采用每页 50 条的客户端分页，筛选和翻页不清除选择，切换目标组清除选择。

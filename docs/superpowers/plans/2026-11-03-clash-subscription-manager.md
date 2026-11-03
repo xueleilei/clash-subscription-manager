@@ -364,17 +364,17 @@
 
 **Interfaces:** `useProfileDraft(profileId: MaybeRefOrGetter<string>): {draft, version, dirty, serverChanged, save, reload, keepLocalEdits}`；GroupList props=groups/selectedId、emit=select/create/edit；GroupMemberList props=group/nodes、emit=remove/reorder；NodePicker props=nodes/disabledIds/selectedIds、emit=toggle/add；所有写入通过 workspace 的动作修改工作副本。
 
-- [ ] 写红灯：跨来源多选加入、同节点不同组、重复禁止、嵌套组、排序/删除/空组提示；选中节点在筛选/分页中保持，主动切换目标组清空待加入选择；来源刷新清理后不复活旧成员。
-- [ ] 写 RF5 用例：A 方案请求慢于 B 时不覆盖 B；HTTP 409 保留本地输入；后台修改版本时无脏数据可重载，有脏数据只提示；会话过期重登同用户后保留内存工作副本，显式退出先提示未保存内容。
+- [x] 写红灯：跨来源多选加入、同节点不同组、重复禁止、嵌套组、排序/删除/空组提示；选中节点在筛选/分页中保持，主动切换目标组清空待加入选择；来源刷新清理后不复活旧成员。
+- [x] 写 RF5 用例：A 方案请求慢于 B 时不覆盖 B；HTTP 409 保留本地输入；后台修改版本时无脏数据可重载，有脏数据只提示；会话过期重登同用户后保留内存工作副本，显式退出先提示未保存内容。
   ~~~ts
   expect(workspace.currentProfileId).toBe(profileB)
   expect(workspace.draft.rules).toContainEqual(localUnsavedRule)
   expect(workspace.serverChanged).toBe(true)
   ~~~
-- [ ] 运行 `pnpm --dir frontend test --run src/features/workspace/WorkspaceView.test.ts src/features/workspace/useProfileDraft.test.ts`，确认红灯。
-- [ ] 参照设计截图实现 A：左组列表、中间成员、右节点池；宽屏同时可见，窄屏按此顺序折叠。使用 ID 做 key/selection，computed 做筛选，不在模板重复排序。草稿按 owner/profile 隔离；请求序号＋AbortController 防止旧响应覆盖；只显式保存/发布提交，不自动覆盖冲突。三个状态为“未保存”“已保存待发布”“与已发布版本一致”。
-- [ ] 同命令和 typecheck/build 通过；浏览器检查键盘多选、滚动、长名称、344 节点规模、空状态。正式版没有 A/B/C 切换器或模拟刷新按钮。
-- [ ] 提交：`feat: build three-column proxy group workspace`。
+- [x] 运行 `pnpm --dir frontend test --run src/features/workspace/WorkspaceView.test.ts src/features/workspace/useProfileDraft.test.ts`，确认红灯。
+- [x] 参照设计截图实现 A：左组列表、中间成员、右节点池；宽屏同时可见，窄屏按此顺序折叠。使用 ID 做 key/selection，computed 做筛选，不在模板重复排序。草稿按 owner/profile 隔离；请求序号＋AbortController 防止旧响应覆盖；只显式保存/发布提交，不自动覆盖冲突。三个状态为“未保存”“已保存待发布”“与已发布版本一致”。
+- [x] 同命令和 typecheck/build 通过；浏览器检查键盘多选、滚动、长名称、344 节点规模、空状态。正式版没有 A/B/C 切换器或模拟刷新按钮。
+- [x] 提交：`feat: build three-column proxy group workspace`。
 
 ## Task 17: 规则、规则集及基础 YAML 编辑界面
 

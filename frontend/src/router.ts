@@ -7,7 +7,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({ history, routes: [
     { path: '/', redirect: '/profiles' }, { path: '/login', component: LoginPage },
     { path: '/profiles', component: ProfileHome },
-    { path: '/profiles/:id', component: FeaturePage, props: { title: '代理组' } },
+    { path: '/profiles/:id', component: () => import('./features/workspace/WorkspaceView.vue') },
     { path: '/sources', component: () => import('./features/sources/SourcesView.vue') },
     { path: '/nodes', component: () => import('./features/sources/NodePoolPage.vue') },
     { path: '/import', component: FeaturePage, props: { title: '导入完整配置' } },
