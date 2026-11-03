@@ -46,7 +46,7 @@ const editingGroup = computed(() => groups.value.find(group => group.id === edit
 const references = computed(() => state.draft.value && editingId.value ? groupReferences(state.draft.value, editingId.value) : [])
 const disabledIds = computed(() => new Set(selectedGroup.value?.members.filter(member => member.kind === 'NODE').map(member => member.id!) ?? []))
 const usedNodes = computed(() => new Set(groups.value.flatMap(group => group.members.filter(member => member.kind === 'NODE').map(member => member.id))).size)
-const matchesPublished = computed(() => Boolean(profile.value?.publishedDefinitionHash && profile.value.draftVersion === state.version.value && profile.value.draftDefinitionHash === profile.value.publishedDefinitionHash))
+const matchesPublished = computed(() => Boolean(!profile.value?.hasUnpublishedNodeChanges && profile.value?.publishedDefinitionHash && profile.value.draftVersion === state.version.value && profile.value.draftDefinitionHash === profile.value.publishedDefinitionHash))
 const refOptions = computed(() => groups.value.filter(group => group.id !== selectedId.value).map(group => ({ id: group.id, name: group.name, disabled: !selectedId.value || !selectedGroup.value || wouldCycle(groups.value, selectedId.value, group.id) || selectedGroup.value!.members.some(member => member.kind === 'GROUP' && member.id === group.id) })))
 let resourceRead: AbortController | null = null, resourceSequence = 0, disposed = false
 async function reloadResources() {

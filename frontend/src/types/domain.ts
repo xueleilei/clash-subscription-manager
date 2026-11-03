@@ -12,9 +12,13 @@ export interface RuleDefinition { id: Id; expression: { type: string; value: str
 export interface ProviderDefinition { id: Id; name: string; type: string; url: string | null; behavior: string; format: string; interval: number; options: JsonObject }
 export interface ProfileDocument { schemaVersion: number; baseYaml: string; groups: GroupDefinition[]; rules: RuleDefinition[]; providers: ProviderDefinition[]; importIssues: Diagnostic[] }
 export interface DraftView { profileId: Id; version: Version; document: ProfileDocument; diagnostics: ValidationReport }
-export interface ProfileView { id: Id; name: string; version: Version; draftVersion: Version; currentReleaseId: Id | null; publishedVersion: Version | null; draftDefinitionHash: string; publishedDefinitionHash: string | null; createTime: string; updateTime: string }
+export interface ProfileView { id: Id; name: string; version: Version; draftVersion: Version; currentReleaseId: Id | null; publishedVersion: Version | null; draftDefinitionHash: string; publishedDefinitionHash: string | null; hasUnpublishedNodeChanges?: boolean; createTime: string; updateTime: string }
 export interface NodeSummary { id: Id; sourceId: Id | null; originalName: string; protocol: string; region: string | null; snapshotVersion: Version }
 export interface NodeSpec extends Pick<NodeSummary, 'id' | 'sourceId' | 'originalName' | 'protocol'> { connection: JsonObject; dialerRef: TargetRef | null }
+export interface LocalNodeCommand { expectedVersion?: Version; name: string; protocol: string; connection: JsonObject; dialerRef: TargetRef | null }
+export interface LocalNodeView { node: NodeSpec; version: Version; affectedProfiles: Id[]; publishedProfiles: Id[] }
+export interface LocalNodeResult { id: Id; version: Version; affectedProfiles: Id[] }
+export interface LocalNodeRemoval { id: Id; version: Version; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: Id[] }
 export interface Page<T> { items: T[]; total: number; page: number; size: number }
 export type InputFormat = 'AUTO' | 'CLASH_YAML' | 'URI_LIST' | 'BASE64'
 export interface SourceView { id: Id; name: string; configVersion: Version; snapshotVersion: Version; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; hostHint: string; syncStatus: string; nodeCount: number; lastAttemptTime: string | null; lastSuccessTime: string | null; nextRefreshTime: string | null; lastErrorCode: string | null }

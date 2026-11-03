@@ -11,6 +11,7 @@ export function useSources() {
   async function reloadNodes() {
     const current = ++sequence; read?.abort(); read = new AbortController()
     const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]))
+    if (query.sourceId === '__LOCAL__') { params.delete('sourceId'); params.set('localOnly', 'true') }
     const result = await request<Page<NodeSummary>>(`/nodes?${params}`, { signal: read.signal })
     if (current === sequence) nodes.value = result
   }

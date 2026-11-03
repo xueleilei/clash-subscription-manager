@@ -9,11 +9,11 @@ import { mockApi, reply, button } from '../../test/http'
 import { documentFixture, draftFixture, nodesFixture, profileFixture } from '../../test/fixtures'
 import type { ProfileDocument } from '../../types/domain'
 afterEach(() => { vi.unstubAllGlobals(); document.body.innerHTML = '' })
-async function prepare(profileDocument = documentFixture(), withApp = false) {
+async function prepare(profileDocument = documentFixture(), withApp = false, unpublishedNodes = false) {
  const nodes = nodesFixture(), writes: ProfileDocument[] = []
  mockApi((path, method, body) => {
   if (path === '/session') return reply(method === 'GET' ? { id: owner, username: 'admin' } : null)
-  if (path === '/profiles') return reply([profileFixture()])
+  if (path === '/profiles') return reply([{ ...profileFixture(), ...(unpublishedNodes ? { currentReleaseId: 'release-1', publishedVersion: '1', publishedDefinitionHash: 'hash-a', hasUnpublishedNodeChanges: true } : {}) }])
   if (path === '/sources') return reply([{ id: 's1', name: '云帆订阅' }, { id: 's2', name: '远山订阅' }])
   if (path.startsWith('/nodes?')) return reply({ items: nodes, total: nodes.length, page: 1, size: 200 })
   if (path === '/profiles/p1/draft' && method === 'GET') return reply(draftFixture('p1', '1', profileDocument))
@@ -29,6 +29,11 @@ async function prepare(profileDocument = documentFixture(), withApp = false) {
 }
 function documentBody() { return document.body.textContent ?? '' }
 function nodeCheckbox(id: string) { return document.querySelector<HTMLInputElement>(`input[data-node-id="${id}"]`)! }
+test('local node changes show pending publication even when the profile definition is unchanged', async () => {
+ await prepare(documentFixture(), false, true)
+ await expect.poll(() => documentBody()).toContain('已保存待发布')
+ expect(documentBody()).not.toContain('与已发布版本一致')
+})
 test('cross-source selection persists across filters/pages and same node can join different groups only once each', async () => {
  const { writes } = await prepare()
  nodeCheckbox('n1').click(); nodeCheckbox('n2').click()
