@@ -183,16 +183,16 @@
 
 **Interfaces:** `SourceService.save(UUID ownerId, SourceCommand command): SourceView`（更新含 expectedVersion）；`UpstreamFetcher.fetch(SourceRequest request): FetchResult`（bytes/status/安全响应元信息）；`NodeRepository.list(UUID ownerId, NodeQuery query): Page<NodeSummary>`。V2 建 subscription_source、source_snapshot、node；唯一键 owner/source/name_hash，原名核验，连接参数密文。
 
-- [ ] 写来源归属/默认周期/凭据加密集成测试；抓取测试覆盖 401、超时、HTML、gzip 超限、每一跳私网检查、IPv4-mapped IPv6、DNS 重绑定；跨 host 跳转不携带认证头。
+- [x] 写来源归属/默认周期/凭据加密集成测试；抓取测试覆盖 401、超时、HTML、gzip 超限、每一跳私网检查、IPv4-mapped IPv6、DNS 重绑定；跨 host 跳转不携带认证头。
   ~~~java
   assertThat(created.refreshIntervalSeconds()).isEqualTo(21_600);
   assertThat(fetchRedirectTo("http://127.0.0.1/").errorCode()).isEqualTo("UPSTREAM_ADDRESS_BLOCKED");
   assertThat(rawDatabaseRow).doesNotContain("fixture-password", "secret-query");
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=UpstreamFetcherTest test` 及 `./scripts/mvn.sh -Dit.test=SourceRepositoryIT verify`，确认失败。
-- [ ] 实现 GET/POST/PATCH `/api/v1/sources`、GET `/api/v1/nodes`；按名称/来源/协议/地区筛选，source view 区分最后尝试和最后成功。HTTP 限 http/https，TLS 校验，连接 5 秒、响应 30 秒、总时长 45 秒、最多 3 跳、压缩前后各 10 MiB；固定本次已检查的解析地址用于连接。代理模式使用同等限制或明确可信出站代理配置，不绕过地址检查。私网仅显式部署 allowlist。
-- [ ] 两组测试通过；请求设置支持加密 header/UA/出站代理；GET `/api/v1/sources/{id}/credentials`、`/api/v1/nodes/{id}/connection` 仅归属管理员显式查看且 no-store，列表不携带秘密。编辑时“未提供秘密字段”表示保留，禁止把脱敏占位符当成新凭据。删除来源接口暂不实现破坏性行为，任务 13 完成两种处理。所有输入变更增加来源 configVersion 和 owner revision。
-- [ ] 提交：`feat: persist sources and fetch upstreams with bounded requests`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=UpstreamFetcherTest test` 及 `./scripts/mvn.sh -Dit.test=SourceRepositoryIT verify`，确认失败。
+- [x] 实现 GET/POST/PATCH `/api/v1/sources`、GET `/api/v1/nodes`；按名称/来源/协议/地区筛选，source view 区分最后尝试和最后成功。HTTP 限 http/https，TLS 校验，连接 5 秒、响应 30 秒、总时长 45 秒、最多 3 跳、压缩前后各 10 MiB；固定本次已检查的解析地址用于连接。代理模式使用同等限制或明确可信出站代理配置，不绕过地址检查。私网仅显式部署 allowlist。
+- [x] 两组测试通过；请求设置支持加密 header/UA/出站代理；GET `/api/v1/sources/{id}/credentials`、`/api/v1/nodes/{id}/connection` 仅归属管理员显式查看且 no-store，列表不携带秘密。编辑时“未提供秘密字段”表示保留，禁止把脱敏占位符当成新凭据。删除来源接口暂不实现破坏性行为，任务 13 完成两种处理。所有输入变更增加来源 configVersion 和 owner revision。
+- [x] 提交：`feat: persist sources and fetch upstreams with bounded requests`。
 
 ## Task 7: 方案草稿、代理组与版本化编辑
 
