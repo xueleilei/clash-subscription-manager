@@ -1,6 +1,6 @@
 # 手动节点维护 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 支持单个本地节点新增、编辑和删除，只有用户手动发布相关方案才影响订阅。
 
@@ -40,10 +40,10 @@
 - 列表新增 `localOnly=true`；`ProfileView` 新增 `hasUnpublishedNodeChanges`。
 - `PreparedRelease` 保存本次编译目录；`ReleaseService.preparePublished` 使用旧发布的本地节点快照，`RefreshPlanner` 调用此方法。
 
-- [ ] 写接口失败测试，POST 尚不存在的路由，期待 200；运行 `./scripts/mvn.sh -s .cache/dev-tools/maven-network-settings.xml -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=LocalNodeIT verify`，确认因接口不存在失败。
-- [ ] 实现本地节点 CRUD、文本解析、版本检查、草稿影响和发布快照隔离。不得绕过现有字段或 Mihomo 校验。
-- [ ] 扩充测试：单链接/单 YAML、多节点拒绝；加密及 no-store；同一 ID 改参数和名称；非法字段/内核拒绝；跨用户和远程节点拒绝；间接引用；删除预览冲突；依赖阻止删除；两轮远程刷新和后续手动发布。
-- [ ] 运行后端 `verify`，Expected: 所有单元和集成测试通过；记录结果并提交。
+- [x] 写接口失败测试，POST 尚不存在的路由，期待 200；运行 `./scripts/mvn.sh -s .cache/dev-tools/maven-network-settings.xml -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=LocalNodeIT verify`，确认因接口不存在失败。
+- [x] 实现本地节点 CRUD、文本解析、版本检查、草稿影响和发布快照隔离。不得绕过现有字段或 Mihomo 校验。
+- [x] 扩充测试：单链接/单 YAML、多节点拒绝；加密及 no-store；同一 ID 改参数和名称；非法字段/内核拒绝；跨用户和远程节点拒绝；间接引用；删除预览冲突；依赖阻止删除；两轮远程刷新和后续手动发布。
+- [x] 运行后端 `verify`，Expected: 所有单元和集成测试通过；记录结果并提交。
 
 ## Task 2: 两个页面的手动节点维护入口
 

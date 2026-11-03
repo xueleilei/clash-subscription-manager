@@ -63,7 +63,7 @@ public class RefreshCommitter {
             if (draft != null) { profiles.updateDraft(owner, id, expected.draft().version(), draft); }
             var prepared = proposal.releases().get(id);
             if (prepared != null) {
-                var release = releases.create(owner, id, prepared, proposal.diff().catalog(), reason);
+                var release = releases.create(owner, id, prepared, reason);
                 profiles.pointRelease(owner, id, expected.profileVersion(), release.id());
             } else { profiles.touch(owner, id, expected.profileVersion()); }
         }

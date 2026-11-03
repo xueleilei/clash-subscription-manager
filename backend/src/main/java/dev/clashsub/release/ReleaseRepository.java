@@ -31,12 +31,12 @@ public class ReleaseRepository {
         if (row == null) { throw ApiException.missing(); } return view(row);
     }
     @Transactional(propagation = Propagation.MANDATORY)
-    public ReleaseView create(UUID owner, UUID profile, PreparedRelease prepared, NodeCatalog catalog, String reason) {
+    public ReleaseView create(UUID owner, UUID profile, PreparedRelease prepared, String reason) {
         if (!prepared.valid()) { throw new ApiValidationException(prepared.validation()); }
         UUID id = UUID.randomUUID(); long version = mapper.latestVersion(owner.toString(), profile.toString()) + 1; Instant now = Instant.now();
         var nodes = new LinkedHashMap<UUID, NodeSpec>();
         for (var nodeId : prepared.compiled().usedNodeIds()) {
-            var node = catalog.get(nodeId); if (node == null) { throw ApiException.conflict(); } nodes.put(nodeId, node);
+            var node = prepared.nodes().get(nodeId); if (node == null) { throw ApiException.conflict(); } nodes.put(nodeId, node);
         }
         var snapshot = new ReleaseSnapshot(id, profile, version, prepared.definition(), prepared.compiled().sourceVersions(), prepared.compiled().yaml(), now, reason);
         var payload = new StoredRelease(snapshot, new NodeCatalog(nodes), prepared.validation().warnings());

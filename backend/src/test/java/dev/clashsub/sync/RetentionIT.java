@@ -17,7 +17,7 @@ class RetentionIT extends RefreshTestSupport {
         var snapshot = snapshots.read(owner); var prepared = publisher.prepare(profile, snapshot.profiles().get(profile).published().definition(), snapshot);
         transaction.executeWithoutResult(tx -> {
             revisions.compareAndIncrement(owner, revisions.current(owner));
-            for (int i = 0; i < 103; i++) { releases.create(owner, profile, prepared, snapshot.nodes(), "RETENTION_FIXTURE"); }
+            for (int i = 0; i < 103; i++) { releases.create(owner, profile, prepared, "RETENTION_FIXTURE"); }
             sourceRepository.saveSnapshot(owner, source, 0, new StoredSourceSnapshot(new byte[0], List.of()), Instant.now().minus(Duration.ofDays(40)));
         });
         var old = java.sql.Timestamp.from(Instant.now().minus(Duration.ofDays(40)));

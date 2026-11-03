@@ -24,7 +24,7 @@ public class RefreshPlanner {
             var old = profile.published();
             if (old != null && old.sourceVersions().containsKey(sourceId)) {
                 var published = reconciler.reconcile(old.definition(), diff.removed());
-                var prepared = publisher.prepare(profile.profileId(), published.document(), candidate);
+                var prepared = publisher.preparePublished(profile.profileId(), published.document(), candidate, old);
                 if (!prepared.valid()) { throw new ApiValidationException(prepared.validation()); }
                 if (forcePublished || !prepared.compiled().yaml().equals(old.yaml()) || !published.document().equals(old.definition())) { releases.put(profile.profileId(), prepared); }
                 removed += published.removedMembers(); rejected.addAll(published.rejectedRuleIds());

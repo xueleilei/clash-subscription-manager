@@ -25,15 +25,28 @@ public class ReleaseService {
     private final MihomoValidator core;
     private final ReleaseCommitter committer;
     private final DefinitionHasher hashes;
-    public ReleaseService(OwnerSnapshotReader snapshots, DraftGuard guard, ProfileCompiler compiler, MihomoValidator core, ReleaseCommitter committer, DefinitionHasher hashes) {
-        this.snapshots = snapshots; this.guard = guard; this.compiler = compiler; this.core = core; this.committer = committer; this.hashes = hashes;
+    private final ReleaseRepository releases;
+    public ReleaseService(OwnerSnapshotReader snapshots, DraftGuard guard, ProfileCompiler compiler, MihomoValidator core, ReleaseCommitter committer, DefinitionHasher hashes, ReleaseRepository releases) {
+        this.snapshots = snapshots; this.guard = guard; this.compiler = compiler; this.core = core; this.committer = committer; this.hashes = hashes; this.releases = releases;
     }
     @Transactional(propagation = Propagation.NEVER)
     public PreparedRelease prepare(UUID profileId, ProfileDocument document, OwnerSnapshot snapshot) {
         var versions = new LinkedHashMap<UUID, Long>(); snapshot.sources().forEach((id, source) -> versions.put(id, source.snapshotVersion()));
         var compiled = compiler.compile(profileId, document, snapshot.nodes(), versions); var report = compiled.report();
         if (compiled.valid()) { report = report.merge(core.validate(compiled.compiled().yaml())); }
-        return new PreparedRelease(document, compiled.compiled(), report);
+        return new PreparedRelease(document, compiled.compiled(), report, snapshot.nodes());
+    }
+    /** Automatic upstream updates must never adopt an unpublished local edit or deletion. */
+    @Transactional(propagation = Propagation.NEVER)
+    public PreparedRelease preparePublished(UUID profileId, ProfileDocument document, OwnerSnapshot candidate, ReleaseSnapshot previous) {
+        var catalog = new LinkedHashMap<>(candidate.nodes().nodes());
+        var publishedNodes = releases.require(candidate.ownerId(), profileId, previous.id()).nodes();
+        for (var node : publishedNodes.nodes().values()) {
+            if (node.sourceId() == null) { catalog.put(node.id(), node); }
+        }
+        var pinned = new OwnerSnapshot(candidate.ownerId(), candidate.dataRevision(), candidate.sources(),
+                new dev.clashsub.node.NodeCatalog(catalog), candidate.profiles());
+        return prepare(profileId, document, pinned);
     }
     @Transactional(propagation = Propagation.NEVER)
     public ReleaseView publish(UUID owner, UUID profileId, long expectedDraftVersion, ProfileDocument submittedDocument) {

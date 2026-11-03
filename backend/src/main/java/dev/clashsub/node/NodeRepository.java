@@ -29,6 +29,23 @@ public class NodeRepository {
         if (row == null) { throw ApiException.missing(); }
         return decode(row);
     }
+    public NodeDO requireLocal(UUID owner, UUID id) {
+        var row = mapper.find(owner.toString(), id.toString());
+        if (row == null || row.sourceId() != null) { throw ApiException.missing(); }
+        return row;
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void updateLocal(UUID owner, NodeSpec node, long expected) {
+        if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
+        var key = NodeIdentity.key(node.id(), node.originalName());
+        var row = new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
+                RegionHint.fromName(node.originalName()), expected + 1, documents.write(node, context(owner.toString(), node.id().toString())));
+        if (mapper.updateLocal(row, expected) != 1) { throw ApiException.conflict(); }
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void deleteLocal(UUID owner, UUID id, long expected) {
+        if (mapper.deleteLocal(owner.toString(), id.toString(), expected) != 1) { throw ApiException.conflict(); }
+    }
     public NodeCatalog catalog(UUID owner) {
         var values = new LinkedHashMap<UUID, NodeSpec>();
         for (var row : mapper.all(owner.toString())) { var node = decode(row); values.put(node.id(), node); }
@@ -70,12 +87,13 @@ public class NodeRepository {
     }
     public Page<NodeSummary> list(UUID owner, NodeQuery query) {
         if (query.page() < 1 || query.page() > 100_000 || query.size() < 1 || query.size() > 200) { throw ApiException.invalid("分页参数不正确"); }
+        if (query.localOnly() && query.sourceId() != null) { throw ApiException.invalid("本地节点筛选不能同时指定上游来源"); }
         String source = query.sourceId() == null ? null : query.sourceId().toString();
         String protocol = empty(query.protocol()), region = empty(query.region()), name = empty(query.name());
         if (name != null) { name = "%" + name.toLowerCase(Locale.ROOT).replace("=", "==").replace("%", "=%").replace("_", "=_") + "%"; }
-        long count = mapper.count(owner.toString(), source, protocol, region, name);
+        long count = mapper.count(owner.toString(), source, protocol, region, name, query.localOnly());
         if (count == 0) { return new Page<>(List.of(), 0, query.page(), query.size()); }
-        var rows = mapper.page(owner.toString(), source, protocol, region, name, query.size(), (long) (query.page() - 1) * query.size());
+        var rows = mapper.page(owner.toString(), source, protocol, region, name, query.size(), (long) (query.page() - 1) * query.size(), query.localOnly());
         return new Page<>(rows.stream().map(row -> new NodeSummary(UUID.fromString(row.id()), row.sourceId() == null ? null : UUID.fromString(row.sourceId()),
                 row.originalName(), row.protocol(), row.region(), Long.toString(row.snapshotVersion()))).toList(), count, query.page(), query.size());
     }

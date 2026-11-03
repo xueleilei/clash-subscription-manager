@@ -48,7 +48,8 @@ public class ProfileService {
 
     @Transactional(readOnly = true) public DraftSnapshot load(UUID owner, UUID id) { return repository.draft(owner, id); }
     @Transactional(readOnly = true) public List<ProfileView> list(UUID owner) {
-        return repository.list(owner).stream().map(row -> view(row, repository.draft(owner, UUID.fromString(row.id())))).toList();
+        var catalog = nodes.catalog(owner);
+        return repository.list(owner).stream().map(row -> view(row, repository.draft(owner, UUID.fromString(row.id())), catalog)).toList();
     }
     @Transactional public DraftSnapshot save(UUID owner, UUID id, long expectedVersion, ProfileDocument document) {
         var profile = repository.require(owner, id); var previous = repository.draft(owner, id);
@@ -89,9 +90,15 @@ public class ProfileService {
     }
     private void validateName(String name) { if (name == null || name.isBlank() || name.length() > 128) { throw ApiException.invalid("方案名称必须为 1–128 个字符"); } }
     private ProfileView view(ProfileDO row, DraftSnapshot draft) {
-        var published = row.currentReleaseId() == null ? null : releases.metadata(UUID.fromString(row.ownerId()), UUID.fromString(row.id()), UUID.fromString(row.currentReleaseId()));
+        return view(row, draft, nodes.catalog(UUID.fromString(row.ownerId())));
+    }
+    private ProfileView view(ProfileDO row, DraftSnapshot draft, dev.clashsub.node.NodeCatalog catalog) {
+        var stored = row.currentReleaseId() == null ? null : releases.require(UUID.fromString(row.ownerId()), UUID.fromString(row.id()), UUID.fromString(row.currentReleaseId()));
+        var published = stored == null ? null : stored.snapshot();
+        boolean changedNodes = stored != null && stored.nodes().nodes().values().stream()
+                .anyMatch(node -> node.sourceId() == null && !node.equals(catalog.get(node.id())));
         return new ProfileView(UUID.fromString(row.id()), row.name(), Long.toString(row.version()), Long.toString(draft.version()),
-                row.currentReleaseId() == null ? null : UUID.fromString(row.currentReleaseId()), published == null ? null : published.version(),
-                hashes.hash(draft.document()), published == null ? null : published.definitionHash(), row.createTime(), row.updateTime());
+                row.currentReleaseId() == null ? null : UUID.fromString(row.currentReleaseId()), published == null ? null : Long.toString(published.version()),
+                hashes.hash(draft.document()), published == null ? null : hashes.hash(published.definition()), changedNodes, row.createTime(), row.updateTime());
     }
 }

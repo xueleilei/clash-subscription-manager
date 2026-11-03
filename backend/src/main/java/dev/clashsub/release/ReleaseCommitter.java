@@ -33,7 +33,7 @@ public class ReleaseCommitter {
             if (source == null || source.configVersion() != row.configVersion() || source.snapshotVersion() != row.snapshotVersion()) { throw ApiException.conflict(); }
         }
         profiles.updateDraft(owner, profileId, draft.version(), prepared.definition());
-        var release = releases.create(owner, profileId, prepared, snapshot.nodes(), "MANUAL");
+        var release = releases.create(owner, profileId, prepared, "MANUAL");
         profiles.pointRelease(owner, profileId, profile.version(), release.id());
         return release;
     }
