@@ -13,6 +13,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class ApiExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+    @ExceptionHandler(ApiValidationException.class)
+    ResponseEntity<ApiResult<ValidationReport>> validation(ApiValidationException exception) {
+        return ResponseEntity.status(exception.status()).body(new ApiResult<>(exception.code(), exception.getMessage(), exception.report(), java.util.UUID.randomUUID().toString()));
+    }
+
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ApiResult<Void>> expected(ApiException exception) {
         return ResponseEntity.status(exception.status()).body(ApiResult.failure(exception.code(), exception.getMessage()));

@@ -4,4 +4,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record ProfileView(UUID id, String name, String version, String draftVersion, UUID currentReleaseId,
-        Instant createTime, Instant updateTime) { }
+        String publishedVersion, String draftDefinitionHash, String publishedDefinitionHash, Instant createTime, Instant updateTime) { }

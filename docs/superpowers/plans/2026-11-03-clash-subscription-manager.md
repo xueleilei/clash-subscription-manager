@@ -253,18 +253,18 @@
 
 **Interfaces:** `OwnerSnapshotReader.read(UUID ownerId): OwnerSnapshot`；`ReleaseService.prepare(ProfileDocument, OwnerSnapshot): PreparedRelease`；`publish(UUID ownerId, UUID profileId, long expectedDraftVersion, ProfileDocument submittedDocument): ReleaseView`；`SubscriptionTokenService.rotate(UUID ownerId, UUID profileId): SubscriptionLink`；`readPublished(String token): PublishedYaml`。
 
-- [ ] 写 MySQL＋真实检查器红灯：发布失败产物/Token 不变；发布时提交当前编辑和创建 release 原子完成；校验期间另一来源提交导致重新计算/409；匿名管理=401，错误/旧 Token=404，未发布有效 Token=409；成功只返回此方案 YAML。
+- [x] 写 MySQL＋真实检查器红灯：发布失败产物/Token 不变；发布时提交当前编辑和创建 release 原子完成；校验期间另一来源提交导致重新计算/409；匿名管理=401，错误/旧 Token=404，未发布有效 Token=409；成功只返回此方案 YAML。
   ~~~java
   assertThat(download(oldToken).status()).isEqualTo(404);
   assertThat(download(validToken).body()).isEqualTo(savedRelease.yaml());
   assertThat(afterFailedPublish.currentReleaseId()).isEqualTo(before.currentReleaseId());
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dit.test=PublicationIT,SubscriptionTokenIT verify`，确认失败。
-- [ ] V4 建 profile_release，profile 存 token hash、加密 Token、当前发布指针。Token 为 SecureRandom 32 bytes 的 base64url，散列查找，轮换使旧 Token 立即无效。prepare 在事务外编译/验证；只在短事务 CAS owner/source/draft 版本、保存完整定义/节点快照及 YAML、切换指针。
-- [ ] 实现 POST `/api/v1/profiles/{id}/validate`、`/publish`、`/token/rotate`，GET `/releases`、`/subscription-link`、`/sub/{token}`；订阅下载不调用抓取或编译。敏感响应 no-store，禁止缓存旧 Token 成功结果；PUBLIC_BASE_URL 生成链接，不信任任意 Host 头。
-- [ ] 扩展 ProfileRepository/ProfileController 的方案摘要：draftVersion、publishedVersion、draftDefinitionHash、publishedDefinitionHash。未保存/待发布/一致比较的是定义摘要，不能用含自动节点参数变化的 YAML 摘要代替。
-- [ ] 同命令通过；保留历史定义而不是修改历史 release；加入跨用户访问所有这些接口的拒绝测试，后台日志/访问日志中无完整 Token/URL。
-- [ ] 提交：`feat: publish immutable profiles and revocable subscription links`。
+- [x] 运行 `./scripts/mvn.sh -Dit.test=PublicationIT,SubscriptionTokenIT verify`，确认失败。
+- [x] V4 建 profile_release，profile 存 token hash、加密 Token、当前发布指针。Token 为 SecureRandom 32 bytes 的 base64url，散列查找，轮换使旧 Token 立即无效。prepare 在事务外编译/验证；只在短事务 CAS owner/source/draft 版本、保存完整定义/节点快照及 YAML、切换指针。
+- [x] 实现 POST `/api/v1/profiles/{id}/validate`、`/publish`、`/token/rotate`，GET `/releases`、`/subscription-link`、`/sub/{token}`；订阅下载不调用抓取或编译。敏感响应 no-store，禁止缓存旧 Token 成功结果；PUBLIC_BASE_URL 生成链接，不信任任意 Host 头。
+- [x] 扩展 ProfileRepository/ProfileController 的方案摘要：draftVersion、publishedVersion、draftDefinitionHash、publishedDefinitionHash。未保存/待发布/一致比较的是定义摘要，不能用含自动节点参数变化的 YAML 摘要代替。
+- [x] 同命令通过；保留历史定义而不是修改历史 release；加入跨用户访问所有这些接口的拒绝测试，后台日志/访问日志中无完整 Token/URL。
+- [x] 提交：`feat: publish immutable profiles and revocable subscription links`。
 
 ## Task 11: 原子刷新、删除传播和空结果决定
 

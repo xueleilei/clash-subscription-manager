@@ -24,4 +24,6 @@ public interface ProfileMapper {
     int rename(@Param("owner") String owner, @Param("id") String id, @Param("expected") long expected, @Param("name") String name);
     @Update("UPDATE configuration_profile SET version=version+1,is_deleted=1 WHERE owner_id=#{owner} AND id=#{id} AND version=#{expected} AND is_deleted=0")
     int delete(@Param("owner") String owner, @Param("id") String id, @Param("expected") long expected);
+    @Update("UPDATE configuration_profile SET version=version+1,current_release_id=#{release} WHERE owner_id=#{owner} AND id=#{id} AND version=#{expected} AND is_deleted=0")
+    int pointRelease(@Param("owner") String owner, @Param("id") String id, @Param("expected") long expected, @Param("release") String release);
 }

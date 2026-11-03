@@ -24,6 +24,11 @@ public abstract class MySqlIntegrationTest {
         properties.add("clash.admin.password-file", PASSWORD_FILE::toString);
         properties.add("clash.encryption-key-file", KEY_FILE::toString);
         properties.add("server.servlet.session.cookie.secure", () -> false);
+        var root = Path.of("..").toAbsolutePath().normalize();
+        String platform = (System.getProperty("os.name").contains("Mac") ? "darwin" : "linux") + "-" + (System.getProperty("os.arch").contains("aarch64") ? "arm64" : "amd64");
+        properties.add("clash.mihomo.executable", () -> root.resolve(".cache/mihomo/" + platform + "/mihomo").toString());
+        properties.add("clash.mihomo.resources", () -> root.resolve(".cache/mihomo/resources").toString());
+        properties.add("clash.public-base-url", () -> "https://fixture.example.invalid");
     }
     private static Path secret(byte[] bytes) {
         try { var path = Files.createTempFile("clash-fixture-", ".secret"); Files.write(path, bytes); path.toFile().deleteOnExit(); return path; }

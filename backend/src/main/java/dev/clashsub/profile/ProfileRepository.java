@@ -48,5 +48,9 @@ public class ProfileRepository {
     public void delete(UUID owner, UUID id, long expected) {
         if (mapper.delete(owner.toString(), id.toString(), expected) != 1) { throw ApiException.conflict(); }
     }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void pointRelease(UUID owner, UUID id, long expected, UUID release) {
+        if (mapper.pointRelease(owner.toString(), id.toString(), expected, release.toString()) != 1) { throw ApiException.conflict(); }
+    }
     private String context(UUID owner, UUID id) { return "profile-draft:" + owner + ":" + id; }
 }
