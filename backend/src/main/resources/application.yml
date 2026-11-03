@@ -36,6 +36,8 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

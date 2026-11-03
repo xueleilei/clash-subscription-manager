@@ -1,0 +1,38 @@
+services:
+  app:
+    image: ${APP_IMAGE:-clash-subscription-manager:local}
+    build:
+      context: .
+    restart: unless-stopped
+    init: true
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    mem_limit: 1536m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=256m,mode=1777
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    environment:
+      DB_URL: ${DB_URL:-jdbc:mysql://host.docker.internal:3306/clashsub?sslMode=REQUIRED&serverTimezone=UTC}
+      DB_USERNAME: ${DB_USERNAME:-clashsub}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+      APP_ENCRYPTION_KEY_FILE: /run/secrets/encryption_key
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      UPSTREAM_PRIVATE_ALLOWLIST: ${UPSTREAM_PRIVATE_ALLOWLIST:-}
+      TRUSTED_OUTBOUND_PROXY_URL: ${TRUSTED_OUTBOUND_PROXY_URL:-}
+    secrets: [db_password, admin_password, encryption_key]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+secrets:
+  db_password:
+    file: ${DB_PASSWORD_FILE:-./secrets/db_password}
+  admin_password:
+    file: ${ADMIN_PASSWORD_FILE:-./secrets/admin_password}
+  encryption_key:
+    file: ${APP_ENCRYPTION_KEY_FILE:-./secrets/encryption.key}

@@ -1,0 +1,16 @@
+.git
+.superpowers
+.cache
+**/node_modules
+**/target
+**/dist
+**/test-results
+**/playwright-report
+**/.vitest
+.env
+.env.*
+secrets
+全部节点合并.yaml
+~
+*.log
+.DS_Store

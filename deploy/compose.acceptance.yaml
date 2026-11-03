@@ -1,0 +1,63 @@
+# Test infrastructure only; never used by either production Compose command.
+services:
+  app:
+    environment:
+      COOKIE_SECURE: "false"
+      UPSTREAM_PRIVATE_ALLOWLIST: ${ACCEPTANCE_FIXTURE_IP}/32
+    healthcheck:
+      interval: 3s
+      timeout: 15s
+      start_period: 60s
+      retries: 35
+    depends_on:
+      fixture:
+        condition: service_healthy
+  fixture:
+    image: node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
+    command: [node, /fixture/server.mjs]
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      FIXTURE_KEY_FILE: /run/secrets/fixture_key
+    secrets: [fixture_key]
+    volumes:
+      - ./tests/upstream-fixture/server.mjs:/fixture/server.mjs:ro
+    ports: ["127.0.0.1:${ACCEPTANCE_FIXTURE_PORT}:18888"]
+    networks:
+      default:
+        ipv4_address: ${ACCEPTANCE_FIXTURE_IP}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:18888/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+  existing-mysql:
+    profiles: [external]
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets: [db_password, mysql_root_password]
+    volumes: [existing_mysql_data:/var/lib/mysql]
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$(cat /run/secrets/mysql_root_password)" mysqladmin ping -h 127.0.0.1 -u root --silent']
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    mem_limit: 1024m
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${ACCEPTANCE_SUBNET}
+secrets:
+  fixture_key:
+    file: ${ACCEPTANCE_FIXTURE_KEY_FILE}
+  mysql_root_password:
+    file: ${MYSQL_ROOT_PASSWORD_FILE}
+volumes:
+  existing_mysql_data:

@@ -416,14 +416,14 @@
 
 **Interfaces:** 单镜像包含 Vue 产物、Java 应用、固定内核和受控验证资源；`compose.yaml` 连接现有 MySQL，叠加 `compose.mysql.yaml` 启动私有网络数据库/持久卷。`scripts/acceptance.sh external|bundled` 在独立测试项目执行部署和完整流程；backup/restore 明确目标数据库及输入目录，不操作未指定实例。
 
-- [ ] 写真实端到端红灯：管理员登录→添加两个可控 HTTP 来源→建两个方案→跨源分组/规则/provider/YAML→发布并读取真实订阅；修改上游触发参数更新/节点消失，下载内容同步、草稿规则不泄露；部分失败保持、空结果保留/清空、旧确认失效、Token 轮换。第二套覆盖完整导入、本地绑定、重启恢复。
-- [ ] 运行 `./scripts/acceptance.sh bundled`，记录交付链路尚缺的红灯。fixture 服务仅测试 Compose 使用，不提供生产“演示后门”，访问 allowlist 仅授权此测试来源。
-- [ ] 多阶段构建：Node/pnpm、Maven/Java 21、非 root JRE 21 运行；镜像摘要及 Mihomo 平台校验和锁定，支持 linux/amd64 和 linux/arm64 构建。无 Docker socket/TUN/NET_ADMIN，临时目录受限，连接数据库和上游所需网络正常；readiness 校验迁移及必要资源。生产只运行一个应用实例。
-- [ ] 实现两种启动命令：`docker compose -f compose.yaml up -d` 与 `docker compose -f compose.yaml -f compose.mysql.yaml up -d`。说明 PUBLIC_BASE_URL、APP_BIND_ADDRESS（默认 127.0.0.1）、APP_PORT（默认 8080）、DB 凭据、管理员初始化、加密密钥和 HTTPS 反向代理；不打印 secret。数据库容器不映射公网端口，现有实例使用专用账号/库。
-- [ ] 在隔离测试库跑备份→删除测试栈→新栈恢复；数据库与密钥分别备份，恢复后 Token/节点参数/任务配置不变；缺失/错误密钥明确失败。更新、回退镜像和数据库迁移限制写入文档；无需实现历史配置一键回滚。
-- [ ] 运行 `./scripts/verify.sh`（全部后端单元/真实 MySQL/内核检查＋前端测试/typecheck/build），再分别 `./scripts/acceptance.sh bundled`、`./scripts/acceptance.sh external`；external 使用独立测试 MySQL 模拟已有实例，不宣称已接入用户的实际数据库。检查无人为 skip、没有凭据/Token 的日志泄漏。
-- [ ] 用浏览器复核正式 A 布局和完整业务流程，保存脱敏截图/测试结果；记录测试过的应用、MySQL、Mihomo、平台架构版本。仅提供部署产物和命令，不自动部署用户服务器。
-- [ ] 提交：`feat: deliver docker deployment and verified subscription workflows`。
+- [x] 写真实端到端红灯：管理员登录→添加两个可控 HTTP 来源→建两个方案→跨源分组/规则/provider/YAML→发布并读取真实订阅；修改上游触发参数更新/节点消失，下载内容同步、草稿规则不泄露；部分失败保持、空结果保留/清空、旧确认失效、Token 轮换。第二套覆盖完整导入、本地绑定、重启恢复。
+- [x] 运行 `./scripts/acceptance.sh bundled`，记录交付链路尚缺的红灯。fixture 服务仅测试 Compose 使用，不提供生产“演示后门”，访问 allowlist 仅授权此测试来源。
+- [x] 多阶段构建：Node/pnpm、Maven/Java 21、非 root JRE 21 运行；镜像摘要及 Mihomo 平台校验和锁定，支持 linux/amd64 和 linux/arm64 构建。无 Docker socket/TUN/NET_ADMIN，临时目录受限，连接数据库和上游所需网络正常；readiness 校验迁移及必要资源。生产只运行一个应用实例。
+- [x] 实现两种启动命令：`docker compose -f compose.yaml up -d` 与 `docker compose -f compose.yaml -f compose.mysql.yaml up -d`。说明 PUBLIC_BASE_URL、APP_BIND_ADDRESS（默认 127.0.0.1）、APP_PORT（默认 8080）、DB 凭据、管理员初始化、加密密钥和 HTTPS 反向代理；不打印 secret。数据库容器不映射公网端口，现有实例使用专用账号/库。
+- [x] 在隔离测试库跑备份→删除测试栈→新栈恢复；数据库与密钥分别备份，恢复后 Token/节点参数/任务配置不变；缺失/错误密钥明确失败。更新、回退镜像和数据库迁移限制写入文档；无需实现历史配置一键回滚。
+- [x] 运行 `./scripts/verify.sh`（全部后端单元/真实 MySQL/内核检查＋前端测试/typecheck/build），再分别 `./scripts/acceptance.sh bundled`、`./scripts/acceptance.sh external`；external 使用独立测试 MySQL 模拟已有实例，不宣称已接入用户的实际数据库。检查无人为 skip、没有凭据/Token 的日志泄漏。
+- [x] 用浏览器复核正式 A 布局和完整业务流程，保存脱敏截图/测试结果；记录测试过的应用、MySQL、Mihomo、平台架构版本。仅提供部署产物和命令，不自动部署用户服务器。
+- [x] 提交：`feat: deliver docker deployment and verified subscription workflows`。
 
 ## 覆盖核对与交付边界
 
@@ -442,4 +442,4 @@
 
 关键交付顺序：1—6 建立可解析、可验证的数据边界；7—10 形成草稿到真实订阅的链路；11—13 完成刷新一致性和迁移；14—18 接上完整界面；19 完成部署与验收。它们共享节点身份、草稿和发布契约，作为一个计划实施。
 
-本轮只完成计划和静态自查。执行时各任务的检查结果随复选框记录；未通过的环境/行为检查必须明确列出，不以原型截图、文档或模拟测试代替真实交付证据。
+执行结果已随任务复选框记录。完整测试、两种 Docker 部署与恢复演练结果见 `docs/operations/verification.md`；没有接入用户实际数据库或部署用户服务器。

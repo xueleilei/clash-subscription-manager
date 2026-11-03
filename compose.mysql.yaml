@@ -1,0 +1,29 @@
+services:
+  app:
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-clashsub}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&sslMode=DISABLED&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+  mysql:
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-clashsub}
+      MYSQL_USER: ${DB_USERNAME:-clashsub}
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets: [db_password, mysql_root_password]
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$(cat /run/secrets/mysql_root_password)" mysqladmin ping -h 127.0.0.1 -u root --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    mem_limit: 1024m
+secrets:
+  mysql_root_password:
+    file: ${MYSQL_ROOT_PASSWORD_FILE:-./secrets/mysql_root_password}
+volumes:
+  mysql_data:

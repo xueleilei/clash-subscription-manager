@@ -1,0 +1,38 @@
+# 首版验收记录
+
+验证日期：2026-11-03。数据均为合成订阅、随机测试口令和隔离数据库；未连接用户实际 MySQL，也未部署用户服务器。
+
+| 检查 | 结果 |
+| --- | --- |
+| 前端真实 Chromium 组件测试 | 39 / 39 通过 |
+| 后端单元测试 | 72 / 72 通过 |
+| MySQL / Mihomo 集成测试 | 85 / 85 通过，零跳过 |
+| TypeScript 检查、Vite / Maven 构建 | 通过 |
+| 配套 MySQL 容器模式 | 2 / 2 端到端流程、重启、完整备份恢复通过 |
+| 已有 MySQL 模式（独立测试实例） | 2 / 2 端到端流程、重启、完整备份恢复通过 |
+| Linux arm64 应用镜像 | 构建及两种部署完整验收通过 |
+| Linux amd64 应用镜像 | 构建、JRE 与 Mihomo 启动检查通过；未重复整套数据库验收 |
+| 容器实际配置 | UID 10001、根目录只读、移除全部 capabilities、无设备或 Docker socket、HTTP 仅绑定 loopback |
+| 桌面 / 390px 窄屏 | 三栏 / 顺序堆叠布局、无横向溢出、无浏览器运行错误 |
+
+端到端流程覆盖双来源同名节点、独立方案、跨源组、规则与远程规则集、YAML、发布下载、上游参数变化、失效引用清理、草稿隔离、部分解析失败、空结果保留/清空与旧确认失效、完整文件导入、本地绑定、重新发布、Token 轮换及应用重启。
+
+恢复演练在停止应用后备份数据库并单独备份密钥，再删除**本次隔离测试栈**、重建空数据库、恢复并重新启动。订阅 Token、发布内容、草稿、节点参数和刷新配置摘要一致；错误/缺失密钥拒绝启动，非空库拒绝恢复，应用日志未包含测试密码或 Token。
+
+验证平台为 macOS arm64 上的 Docker Desktop（Engine 27.5.1、Compose 2.32.4）；容器运行 MySQL 8.4.13、Temurin JRE 21.0.13+9、Mihomo 1.19.33。应用 0.1.0-SNAPSHOT 使用 Spring Boot 4.1.2、Vue 3.5.44；完整固定版本和摘要见 POM、前端 lockfile、`deploy/images.lock` 和 `tools/mihomo/resources.lock`。
+
+正式界面截图使用本地合成节点；与容器中的同一前端代码一致：
+
+![A 三栏工作台](../screenshots/workspace.png)
+
+[窄屏截图](../screenshots/workspace-mobile.png)
+
+复现命令：
+
+```sh
+./scripts/verify.sh
+./scripts/acceptance.sh bundled
+./scripts/acceptance.sh external
+```
+
+完整验收结果不代表真实上游节点可达；Mihomo 仅执行离线配置校验。amd64 当前验证到构建与二进制启动，部署到该架构后仍应执行自身环境验收。
