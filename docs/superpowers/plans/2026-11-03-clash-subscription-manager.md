@@ -330,16 +330,16 @@
 
 **Interfaces:** `request<T>(path: string, options: RequestOptions): Promise<T>`；RequestOptions 包含 method/body/signal，修改请求自动使用最新 CSRF。`useSession(): {user, status, login(credentials), logout(), resume()}`；状态只存内存，同源 cookie，不存 Token 到 localStorage。domain.ts 对齐 Java JSON 契约。
 
-- [ ] 写行为红灯：登录失败有可读信息，成功进入方案；401 触发重登而不重试写操作；403/409/422 区别展示；AbortError 不报失败；源名称含 HTML 按纯文本显示。
+- [x] 写行为红灯：登录失败有可读信息，成功进入方案；401 触发重登而不重试写操作；403/409/422 区别展示；AbortError 不报失败；源名称含 HTML 按纯文本显示。
   ~~~ts
   expect(loginResponse.status).toBe('authenticated')
   expect(submittedRequests.filter(r => r.method === 'PUT')).toHaveLength(1)
   expect(document.querySelector('script[data-untrusted]')).toBeNull()
   ~~~
-- [ ] 运行 `pnpm --dir frontend test --run src/features/auth/LoginForm.test.ts src/api/client.test.ts`，确认红灯；初次先建立必要 runner 配置。
-- [ ] 锁定版本基线，采用 Composition API、`<script setup lang="ts">`。App/路由只组合功能组件；登录表单 props=busy/error、emit=submit(credentials)，AppShell 负责侧栏与方案入口。Vite 开发代理转发 API/sub，生产由 Java 提供同源静态文件；SPA fallback 不吞掉 API/sub 的 404。
-- [ ] 同命令、`pnpm --dir frontend typecheck`、`pnpm --dir frontend build` 通过；导出前后端字段/版本/错误响应说明，用真实登录接口完成一次手动流程。
-- [ ] 提交：`feat: add typed vue application shell and login`。
+- [x] 运行 `pnpm --dir frontend test --run src/features/auth/LoginForm.test.ts src/api/client.test.ts`，确认红灯；初次先建立必要 runner 配置。
+- [x] 锁定版本基线，采用 Composition API、`<script setup lang="ts">`。App/路由只组合功能组件；登录表单 props=busy/error、emit=submit(credentials)，AppShell 负责侧栏与方案入口。Vite 开发代理转发 API/sub，生产由 Java 提供同源静态文件；SPA fallback 不吞掉 API/sub 的 404。
+- [x] 同命令、`pnpm --dir frontend typecheck`、`pnpm --dir frontend build` 通过；导出前后端字段/版本/错误响应说明，用真实登录接口完成一次手动流程。
+- [x] 提交：`feat: add typed vue application shell and login`。
 
 ## Task 15: 上游订阅与统一节点池界面
 

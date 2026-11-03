@@ -29,6 +29,12 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(ApiResult.failure("A0001", "输入格式不正确"));
     }
 
+    @ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class})
+    ResponseEntity<ApiResult<Void>> missing(Exception exception) {
+        return ResponseEntity.status(404).body(ApiResult.failure("A0004", "资源不存在"));
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiResult<Void>> unexpected(Exception exception) {
         var response = ApiResult.failure("B0001", "服务暂时无法处理请求");
