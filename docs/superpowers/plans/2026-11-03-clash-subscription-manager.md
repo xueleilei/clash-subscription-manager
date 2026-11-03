@@ -106,11 +106,11 @@
 
 **Interfaces:** 消费环境变量 ADMIN_USERNAME、ADMIN_PASSWORD_FILE 和数据库连接；提供 `CurrentUser.requireId(): UUID`，GET `/api/v1/csrf`、GET/POST/DELETE `/api/v1/session`。POST 使用表单 username/password，成功和失败均为 JSON，不跳转 HTML；登录后轮换 Session 并刷新 CSRF。
 
-- [ ] 写 AuthenticationIT：匿名 GET session=401；有 CSRF 的正确登录=200；错误密码=401；无 CSRF 的修改=403；注销后=401；第二次启动不得重置既有管理员密码。检查数据库只有密码散列。
-- [ ] 运行 `./scripts/mvn.sh -Dit.test=AuthenticationIT verify`，记录契约尚未实现的红灯。
-- [ ] 在上述文件实现初始化、SecurityFilterChain、健康检查和 MySQL/Flyway 测试连接。V1 创建 app_user（id、username、password_hash、data_revision、create_time、update_time）。显式使用 Boot 4 starter 和 MyBatis-Plus Boot 4 starter；不添加注册接口。Session Cookie 为 HttpOnly，生产 Secure，SameSite=Lax。
-- [ ] 同命令通过，并运行 `./scripts/mvn.sh dependency:tree` 检查 starter/Jackson/MyBatis 版本混用。项目脚本以 Java 21 运行，Docker 缺失是环境失败，不跳过 MySQL 测试。
-- [ ] 提交任务文件：`feat: add authenticated application foundation`。
+- [x] 写 AuthenticationIT：匿名 GET session=401；有 CSRF 的正确登录=200；错误密码=401；无 CSRF 的修改=403；注销后=401；第二次启动不得重置既有管理员密码。检查数据库只有密码散列。
+- [x] 运行 `./scripts/mvn.sh -Dit.test=AuthenticationIT verify`，记录契约尚未实现的红灯。
+- [x] 在上述文件实现初始化、SecurityFilterChain、健康检查和 MySQL/Flyway 测试连接。V1 创建 app_user（id、username、password_hash、data_revision、create_time、update_time）。显式使用 Boot 4 starter 和 MyBatis-Plus Boot 4 starter；不添加注册接口。Session Cookie 为 HttpOnly，生产 Secure，SameSite=Lax。
+- [x] 同命令通过，并运行 `./scripts/mvn.sh dependency:tree` 检查 starter/Jackson/MyBatis 版本混用。项目脚本以 Java 21 运行，Docker 缺失是环境失败，不跳过 MySQL 测试。
+- [x] 提交任务文件：`feat: add authenticated application foundation`。
 
 ## Task 2: 稳定节点身份、类型模型和加密边界
 
