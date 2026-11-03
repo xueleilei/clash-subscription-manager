@@ -56,10 +56,11 @@ public class SourceService {
     }
 
     private SourceView view(SourceDO row, long nodeCount) {
-        String host = SourceRequestValidator.url(repository.request(row).url()).getHost();
+        var request = repository.request(row);
+        String host = SourceRequestValidator.url(request.url()).getHost();
         return new SourceView(UUID.fromString(row.id()), row.name(), Long.toString(row.configVersion()), Long.toString(row.snapshotVersion()),
                 row.enabled(), row.refreshIntervalSeconds(), InputFormat.valueOf(row.inputFormat()), host, row.syncStatus(),
-                row.lastAttemptTime(), row.lastSuccessTime(), row.nextRefreshTime(), row.lastErrorCode(), nodeCount);
+                row.lastAttemptTime(), row.lastSuccessTime(), row.nextRefreshTime(), row.lastErrorCode(), nodeCount, request.outboundProxy());
     }
     private boolean placeholder(String value) { return value.matches("[*•●]{3,}") || value.contains("••••") || value.equalsIgnoreCase("[redacted]"); }
 }

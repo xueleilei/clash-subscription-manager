@@ -21,7 +21,7 @@ export interface LocalNodeResult { id: Id; version: Version; affectedProfiles: I
 export interface LocalNodeRemoval { id: Id; version: Version; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: Id[] }
 export interface Page<T> { items: T[]; total: number; page: number; size: number }
 export type InputFormat = 'AUTO' | 'CLASH_YAML' | 'URI_LIST' | 'BASE64'
-export interface SourceView { id: Id; name: string; configVersion: Version; snapshotVersion: Version; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; hostHint: string; syncStatus: string; nodeCount: number; lastAttemptTime: string | null; lastSuccessTime: string | null; nextRefreshTime: string | null; lastErrorCode: string | null }
+export interface SourceView { id: Id; name: string; configVersion: Version; snapshotVersion: Version; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; hostHint: string; syncStatus: string; nodeCount: number; lastAttemptTime: string | null; lastSuccessTime: string | null; nextRefreshTime: string | null; lastErrorCode: string | null; outboundProxy?: string }
 export interface SourceRequest { url: string; headers: Record<string, string>; userAgent: string; outboundProxy: string }
 export interface SourceCommand { id?: Id; expectedVersion?: Version; name: string; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; url?: string; headers?: Record<string, string>; userAgent?: string; outboundProxy?: string }
 export interface ChangeSummary { added: number; updated: number; removed: number; profiles: Record<Id, { removedMembers: number; rejectedRuleIds: Id[]; emptyGroupIds: Id[] }> }

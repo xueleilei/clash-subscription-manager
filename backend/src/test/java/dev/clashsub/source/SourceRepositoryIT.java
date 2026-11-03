@@ -19,6 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@org.springframework.test.context.TestPropertySource(properties = "clash.fetch.trusted-proxy-url=http://127.0.0.1:9999")
 class SourceRepositoryIT extends MySqlIntegrationTest {
     @Autowired SourceService service;
     @Autowired SourceRepository sources;
@@ -57,6 +58,24 @@ class SourceRepositoryIT extends MySqlIntegrationTest {
                 .isInstanceOf(ApiException.class).extracting("status").isEqualTo(409);
         assertThat(service.list(owner).getFirst().name()).isEqualTo("Renamed");
         assertThat(revisions.current(owner)).isEqualTo(2);
+    }
+
+    @Test void sourceMetadataExposesSavedProxyAliasWithoutConnectionSecrets() throws Exception {
+        var admin = UUID.fromString(jdbc.queryForObject("SELECT id FROM app_user WHERE username=?", String.class, ADMIN));
+        var view = service.save(admin, create());
+        var sourceId = view.id().toString();
+        var client = new dev.clashsub.support.ApiTestClient(port);
+        client.login(ADMIN, PASSWORD);
+        for (String proxy : List.of("default", "")) {
+            view = service.save(admin, new SourceCommand(view.id(), Long.parseLong(view.configVersion()), null, null, null, null, null, null, null, proxy));
+            var response = client.get("/api/v1/sources");
+            assertThat(response.statusCode()).isEqualTo(200);
+            var item = java.util.stream.StreamSupport.stream(client.data(response).spliterator(), false)
+                    .filter(value -> value.path("id").asString().equals(sourceId)).findFirst().orElseThrow();
+            assertThat(item.has("outboundProxy")).isTrue();
+            assertThat(item.path("outboundProxy").asString()).isEqualTo(proxy);
+            assertThat(response.body()).doesNotContain("fixture-password", "secret-query", "Authorization", "127.0.0.1:9999");
+        }
     }
 
     @Test void ownerScopeAndPlaceholderProtectionAreEnforced() {

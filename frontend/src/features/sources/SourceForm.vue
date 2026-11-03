@@ -6,7 +6,7 @@ import type { InputFormat, SourceCommand, SourceRequest, SourceView } from '../.
 const props = defineProps<{ source: SourceView | null; busy: boolean; proxyOptions: readonly string[] }>()
 const emit = defineEmits<{ submit: [command: SourceCommand]; cancel: [] }>()
 const defaultProxy = props.proxyOptions.includes('default') ? 'default' : props.proxyOptions[0] ?? ''
-const form = reactive({ name: props.source?.name ?? '', enabled: props.source?.enabled ?? true, interval: props.source?.refreshIntervalSeconds ?? 21600, format: props.source?.inputFormat ?? 'AUTO' as InputFormat, url: '', headers: '', userAgent: '', outboundProxy: props.source ? '__KEEP__' : defaultProxy })
+const form = reactive({ name: props.source?.name ?? '', enabled: props.source?.enabled ?? true, interval: props.source?.refreshIntervalSeconds ?? 21600, format: props.source?.inputFormat ?? 'AUTO' as InputFormat, url: '', headers: '', userAgent: '', outboundProxy: props.source ? props.source.outboundProxy ?? '__KEEP__' : defaultProxy })
 const error = shallowRef(''), revealing = shallowRef(false), userAgentChanged = shallowRef(false)
 async function reveal() {
  if (!props.source) return
@@ -33,7 +33,7 @@ function submit() {
  <label>来源名称<input v-model="form.name" name="source-name" maxlength="128" required placeholder="例如：常用订阅"></label>
  <label>订阅地址<input v-model="form.url" name="source-url" type="url" :required="!source" autocomplete="off" :placeholder="source ? '留空保留已保存的地址' : 'https://example.com/subscribe'"></label>
  <p v-if="source" class="muted">已保存地址位于 {{ source.hostHint }}。<button type="button" class="text-button" :disabled="revealing" @click="reveal">显示已保存凭据</button></p>
- <label>出站代理<select v-model="form.outboundProxy" name="source-proxy"><option v-if="source" value="__KEEP__">保持现有设置</option><option value="">直接连接</option><option v-for="proxy in proxyOptions" :key="proxy" :value="proxy">{{ proxy }}（可信代理）</option></select></label>
+ <label>出站代理<select v-model="form.outboundProxy" name="source-proxy"><option v-if="source && source.outboundProxy === undefined" value="__KEEP__">保持现有设置</option><option value="">直接连接</option><option v-for="proxy in proxyOptions" :key="proxy" :value="proxy">{{ proxy }}（可信代理）</option></select></label>
  <p class="muted">{{ proxyOptions.length ? '新增订阅默认使用可信代理，也可手动选择直接连接。此选项仅影响获取订阅时的连接方式。' : '未配置可信代理，新增订阅使用直接连接。' }}</p>
  <div class="form-row"><label>订阅格式<select v-model="form.format"><option value="AUTO">自动识别</option><option value="CLASH_YAML">Clash / Mihomo YAML</option><option value="URI_LIST">节点链接列表</option><option value="BASE64">Base64 节点列表</option></select></label><label>刷新周期（秒）<input v-model.number="form.interval" type="number" min="300" max="2678400" required></label></div>
  <label><input v-model="form.enabled" type="checkbox">启用定时刷新</label><p class="muted">默认每 6 小时刷新。暂停定时任务会保留现有节点。</p>

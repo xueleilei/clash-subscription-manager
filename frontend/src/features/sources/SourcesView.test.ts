@@ -4,6 +4,7 @@ import { effectScope, nextTick } from 'vue'
 import SourcesView from './SourcesView.vue'
 import NodePoolPage from './NodePoolPage.vue'
 import SourceForm from './SourceForm.vue'
+import SourceList from './SourceList.vue'
 import { useRefreshTasks } from './useRefreshTasks'
 import { mockApi, reply, button } from '../../test/http'
 import { deferred } from '../../test/fixtures'
@@ -101,6 +102,18 @@ test('editing a masked source preserves omitted credentials and proxy even when 
  await wrapper.get('input[name=source-name]').setValue('改名'); await wrapper.get('form').trigger('submit')
  const submitted = wrapper.emitted('submit')![0]![0] as Record<string, unknown>
  expect(submitted.name).toBe('改名'); expect(submitted).not.toHaveProperty('url'); expect(submitted).not.toHaveProperty('headers'); expect(submitted).not.toHaveProperty('outboundProxy'); expect(submitted.expectedVersion).toBe('1')
+})
+test.each(['default', ''])('editing displays and preserves the saved connection mode %j without revealing credentials', async outboundProxy => {
+ const wrapper = mount(SourceForm, { props: { source: { ...source('a'), outboundProxy }, busy: false, proxyOptions: ['default'] }, attachTo: document.body })
+ expect(wrapper.get<HTMLSelectElement>('select[name=source-proxy]').element.value).toBe(outboundProxy)
+ await wrapper.get('input[name=source-name]').setValue('只改名称'); await wrapper.get('form').trigger('submit')
+ const submitted = wrapper.emitted('submit')![0]![0] as Record<string, unknown>
+ expect(submitted.outboundProxy).toBe(outboundProxy); expect(submitted).not.toHaveProperty('url'); expect(submitted).not.toHaveProperty('headers')
+})
+test('source cards identify the actual trusted proxy or direct connection', () => {
+ const wrapper = mount(SourceList, { props: { sources: [{ ...source('a'), outboundProxy: 'default' }, { ...source('b'), outboundProxy: '' }], busy: false } })
+ expect(wrapper.get('[data-source-id=a]').text()).toContain('可信代理 · default')
+ expect(wrapper.get('[data-source-id=b]').text()).toContain('直接连接')
 })
 test('source removal shows its impact and sends only the explicitly chosen keep-local mode', async () => {
  const server = serve(); mount(SourcesView, { attachTo: document.body }); await expect.poll(() => button('删除 来源 a')).toBeTruthy()
