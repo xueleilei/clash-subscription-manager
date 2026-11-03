@@ -200,16 +200,16 @@
 
 **Interfaces:** `ProfileService.create(UUID ownerId, String name): DraftSnapshot`；`save(UUID ownerId, UUID profileId, long expectedVersion, ProfileDocument document): DraftSnapshot`；`ReferenceValidator.validate(ProfileDocument document, NodeCatalog catalog): ValidationReport`。GET/POST `/api/v1/profiles`，GET/PUT `/api/v1/profiles/{id}/draft`，PATCH/DELETE `/api/v1/profiles/{id}`。
 
-- [ ] 写红灯：两方案组和规则独立，跨方案/用户 group ID 拒绝；环和悬空引用被定位；重复成员拒绝；组重命名保持 ID；旧 expectedVersion=409；保存未完成 base YAML 不改变已发布内容；删除被引用组须先替换/解除所有引用。
+- [x] 写红灯：两方案组和规则独立，跨方案/用户 group ID 拒绝；环和悬空引用被定位；重复成员拒绝；组重命名保持 ID；旧 expectedVersion=409；保存未完成 base YAML 不改变已发布内容；删除被引用组须先替换/解除所有引用。
   ~~~java
   assertThat(validate(cycleDocument).errors()).extracting(Diagnostic::code).contains("GROUP_CYCLE");
   assertThat(saveWithOldVersion.status()).isEqualTo(409);
   assertThat(load(otherProfile).document()).isEqualTo(otherProfileBefore);
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=ReferenceValidatorTest test` 和 `./scripts/mvn.sh -Dit.test=ProfileDraftIT verify`，确认红灯。
-- [ ] V3 建 configuration_profile、profile_draft；save 使用明确 schemaVersion 文档、期望版本和 owner revision。类型合法但尚未完成的草稿可保存并返回诊断；跨用户引用不允许持久化。新方案 baseYaml 为 `mode: rule`，rules 为一个 `MATCH,REJECT`，组为空。元数据删除先返回影响信息，删除方案撤销订阅访问；组编辑始终通过内部 ID。
-- [ ] 两组命令通过。组、规则、provider 等类型结构定义在任务 2，避免控制器之间用不同 JSON 字段表示同一概念。
-- [ ] 提交：`feat: persist independent versioned profile drafts`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=ReferenceValidatorTest test` 和 `./scripts/mvn.sh -Dit.test=ProfileDraftIT verify`，确认红灯。
+- [x] V3 建 configuration_profile、profile_draft；save 使用明确 schemaVersion 文档、期望版本和 owner revision。类型合法但尚未完成的草稿可保存并返回诊断；跨用户引用不允许持久化。新方案 baseYaml 为 `mode: rule`，rules 为一个 `MATCH,REJECT`，组为空。元数据删除先返回影响信息，删除方案撤销订阅访问；组编辑始终通过内部 ID。
+- [x] 两组命令通过。组、规则、provider 等类型结构定义在任务 2，避免控制器之间用不同 JSON 字段表示同一概念。
+- [x] 提交：`feat: persist independent versioned profile drafts`。
 
 ## Task 8: 规则文本、远程规则集与基础 YAML 校验
 
