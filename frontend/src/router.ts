@@ -2,7 +2,6 @@ import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { useSession } from './features/auth/useSession'
 import LoginPage from './features/auth/LoginPage.vue'
 import ProfileHome from './layout/ProfileHome.vue'
-import FeaturePage from './layout/FeaturePage.vue'
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({ history, routes: [
     { path: '/', redirect: '/profiles' }, { path: '/login', component: LoginPage },
@@ -10,7 +9,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     { path: '/profiles/:id', component: () => import('./features/workspace/WorkspaceView.vue') },
     { path: '/sources', component: () => import('./features/sources/SourcesView.vue') },
     { path: '/nodes', component: () => import('./features/sources/NodePoolPage.vue') },
-    { path: '/import', component: FeaturePage, props: { title: '导入完整配置' } },
+    { path: '/import', component: () => import('./features/import/ImportWizard.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/profiles' },
   ] })
   router.beforeEach(async to => {

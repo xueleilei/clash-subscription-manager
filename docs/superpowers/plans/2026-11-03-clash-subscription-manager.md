@@ -399,16 +399,16 @@
 
 **Interfaces:** ImportWizard 步骤 read/preview/resolve/createDraft，调用任务 13；NodeBindingDialog props=localNode、emit=applied；PublishPanel props=draft/version/dirty、emit=published(ReleaseView)/conflict；SubscriptionLink 仅管理员显式显示/复制/重置链接。
 
-- [ ] 写红灯：实际文件导入；歧义匹配可保留本地；本地关联显示受影响草稿且不声称立即发布；有阻断诊断不可发布；空组/REJECT 回退可警告后发布；发布失败仍显示上一成功版本；重置提示旧链接失效。
+- [x] 写红灯：实际文件导入；歧义匹配可保留本地；本地关联显示受影响草稿且不声称立即发布；有阻断诊断不可发布；空组/REJECT 回退可警告后发布；发布失败仍显示上一成功版本；重置提示旧链接失效。
   ~~~ts
   expect(importResult.profileId).not.toBe(existingProfileId)
   expect(publishPanel.currentVersion).toBe(previousVersion)
   expect(publishPanel.getByText('旧订阅链接将立即失效')).toBeVisible()
   ~~~
-- [ ] 运行 `pnpm --dir frontend test --run src/features/import/ImportWizard.test.ts src/features/publish/PublishPanel.test.ts`，确认红灯。
-- [ ] 实现校验摘要、输出节点数、差异、YAML 预览、历史原因和固定订阅 URL；“发布”一次提交当前工作副本＋expectedVersion。预览 YAML 和复制属于管理员动作，不能把敏感内容放 URL/浏览器持久缓存；预览中解释远程规则集/节点可达性未测试。
-- [ ] 同命令和 typecheck/build 通过；结合实际后端完成“导入→保留本地→编组→发布→复制链接→绑定→再次发布”的完整操作，下载内容与发布预览一致。
-- [ ] 提交：`feat: import publish and share configuration subscriptions`。
+- [x] 运行 `pnpm --dir frontend test --run src/features/import/ImportWizard.test.ts src/features/publish/PublishPanel.test.ts`，确认红灯。
+- [x] 实现校验摘要、输出节点数、差异、YAML 预览、历史原因和固定订阅 URL；“发布”一次提交当前工作副本＋expectedVersion。预览 YAML 和复制属于管理员动作，不能把敏感内容放 URL/浏览器持久缓存；预览中解释远程规则集/节点可达性未测试。
+- [x] 同命令和 typecheck/build 通过；结合实际后端完成“导入→保留本地→编组→发布→复制链接→绑定→再次发布”的完整操作，下载内容与发布预览一致。
+- [x] 提交：`feat: import publish and share configuration subscriptions`。
 
 ## Task 19: Docker 交付、完整流程和恢复演练
 

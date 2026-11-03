@@ -1,0 +1,15 @@
+<script setup lang="ts">
+import { onScopeDispose, shallowRef, watch } from 'vue'
+import { ElButton, ElDialog } from 'element-plus'
+import { errorMessage, request } from '../../api/client'
+import type { SubscriptionLinkData } from '../../types/domain'
+const props=defineProps<{profileId:string;published:boolean}>()
+const value=shallowRef<SubscriptionLinkData|null>(null),busy=shallowRef(false),error=shallowRef(''),confirmReset=shallowRef(false),copied=shallowRef(false)
+let sequence=0,controller:AbortController|null=null
+function clear(){sequence++;controller?.abort();value.value=null;confirmReset.value=false;copied.value=false;error.value='';busy.value=false}
+watch(()=>props.profileId,clear);onScopeDispose(clear)
+async function read(rotate=false){if(busy.value)return;const current=++sequence;controller?.abort();controller=new AbortController();busy.value=true;error.value='';copied.value=false;try{const result=await request<SubscriptionLinkData>(`/profiles/${props.profileId}/${rotate?'token/rotate':'subscription-link'}`,{method:rotate?'POST':'GET',signal:controller.signal});if(current===sequence){value.value=result;confirmReset.value=false}}catch(cause){if(current===sequence)error.value=errorMessage(cause)}finally{if(current===sequence)busy.value=false}}
+async function copy(){if(!value.value)return;try{await navigator.clipboard.writeText(value.value.url);copied.value=true}catch{error.value='浏览器未允许复制，请选中链接手动复制。'}}
+</script>
+<template><section class="panel link-panel"><header class="panel-header"><div><h2>订阅链接</h2><p class="muted">发布更新后地址保持不变；Clash Verge 中添加此 URL 即可。</p></div></header><div class="panel-body"><p v-if="!published" class="warning">此方案尚未发布，当前链接暂不能下载配置。</p><p class="muted link-help">持有链接即可下载包含节点凭据的配置，请妥善保存。</p><div v-if="value" class="link-value"><input :value="value.url" readonly aria-label="订阅链接" @focus="event=>(event.target as HTMLInputElement).select()"><ElButton @click="copy">{{copied?'已复制':'复制链接'}}</ElButton><ElButton @click="clear">隐藏</ElButton></div><div class="toolbar link-actions"><ElButton v-if="!value" :loading="busy" @click="read()">显示订阅链接</ElButton><button class="text-button danger" :disabled="busy" @click="confirmReset=true">重置订阅链接</button></div><p v-if="error" class="error" role="alert">{{ error }}</p></div></section><ElDialog v-model="confirmReset" title="重置订阅链接" width="470px" :close-on-click-modal="false"><p class="warning">旧订阅链接将立即失效。所有使用此方案的客户端需要换成新地址。</p><p v-if="error" class="error" role="alert">{{ error }}</p><div class="dialog-actions"><ElButton :disabled="busy" @click="confirmReset=false">取消</ElButton><ElButton type="danger" :loading="busy" @click="read(true)">确认重置链接</ElButton></div></ElDialog></template>
+<style scoped>.link-help{font-size:12px;margin-bottom:16px}.link-value{display:flex;align-items:center;gap:8px}.link-value input{font-family:monospace;min-width:0}.link-actions{margin-top:14px}.error{margin-top:14px}.warning{margin-bottom:14px}@media(max-width:720px){.link-value{flex-wrap:wrap}.link-value input{flex-basis:100%}}</style>

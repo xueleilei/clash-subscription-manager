@@ -77,3 +77,11 @@ test('late profile metadata from a previous owner cannot repopulate the sidebar'
  owner = 'metadata-owner-b'; await useSession().resume(); pending.resolve(reply([{ id: 'secret-profile-a', name: 'Owner A only' }]))
  await loading; expect(profiles.profiles.value).toEqual([])
 })
+test('publication acknowledgement advances the saved baseline while preserving edits made during publishing', async () => {
+ let server = draftFixture(); await api(() => reply(server)); const workspace=start(); await expect.poll(()=>workspace.version.value).toBe('1')
+ const submitted={...documentFixture(),baseYaml:'mixed-port: 8881\n'};workspace.updateDocument(submitted)
+ server=draftFixture('p1','2',submitted); workspace.updateDocument({...submitted,baseYaml:'mixed-port: 8882\n'})
+ await workspace.acknowledgePublished('p1',submitted)
+ expect(workspace.version.value).toBe('2');expect(workspace.draft.value?.baseYaml).toContain('8882');expect(workspace.dirty.value).toBe(true);expect(workspace.serverChanged.value).toBe(false)
+ workspace.updateDocument(submitted);expect(workspace.dirty.value).toBe(false)
+})

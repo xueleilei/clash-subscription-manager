@@ -51,6 +51,21 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
   } catch (cause) { if (cause instanceof ApiError && (cause.status === 409 || cause.status === 404) && currentEpoch === epoch) target.serverChanged = true; throw cause }
   finally { writes.delete(controller) }
  }
+ async function acknowledgePublished(id: string, submitted: ProfileDocument) {
+  const key = `${session.ownerId.value}:${id}`, target = cache.get(key), currentEpoch = epoch
+  if (!target) return
+  if (target === entry.value) { sequence++; read?.abort() }
+  const controller = new AbortController(); writes.add(controller)
+  try {
+   const result = await request<DraftView>(`/profiles/${id}/draft`, {signal:controller.signal})
+   if (currentEpoch !== epoch || cache.get(key) !== target || BigInt(result.version) < BigInt(target.version || '0')) return
+   const sentText = encode(submitted)
+   if (encode(target.document) === sentText) accept(target, result)
+   else if (encode(result.document) === sentText) {
+    target.baseline = sentText; target.version = result.version; target.diagnostics = result.diagnostics; target.latest = result; target.serverChanged = false; target.notice = ''
+   } else { target.latest = result; target.serverChanged = true }
+  } finally { writes.delete(controller) }
+ }
  async function keepLocalEdits() {
   const target = entry.value; if (!target?.document) return
   const key = currentKey(), currentEpoch = epoch, current = ++sequence; read?.abort(); read = new AbortController(); loading.value = true
@@ -77,5 +92,5 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
  }, { immediate: true, flush: 'sync' })
  document.addEventListener('visibilitychange', visibility); schedule()
  onScopeDispose(() => { disposed = true; sequence++; read?.abort(); clearTimeout(timer); document.removeEventListener('visibilitychange', visibility) })
- return { currentProfileId, draft, version, dirty, serverChanged, latest, diagnostics, notice, error, loading, updateDocument, save, reload, discardChanges, keepLocalEdits }
+ return { currentProfileId, draft, version, dirty, serverChanged, latest, diagnostics, notice, error, loading, updateDocument, save, acknowledgePublished, reload, discardChanges, keepLocalEdits }
 }

@@ -28,3 +28,8 @@ export interface ReleaseView { id: Id; profileId: Id; version: Version; definiti
 export interface PublishPreview { profileId: Id; expectedVersion: Version; definitionHash: string; yamlDigest: string; yaml: string | null; nodeCount: number; groupCount: number; ruleCount: number; emptyGroupIds: Id[]; sourceVersions: Record<Id, Version>; report: ValidationReport }
 export interface SubscriptionLinkData { profileId: Id; url: string; token: string }
 export interface RuleImportPreview { applicable: boolean; expectedVersion: Version; rules: RuleDefinition[]; importedRules: RuleDefinition[]; report: ValidationReport }
+export interface BindingChoice { mode:'LOCAL'|'REMOTE'; remoteNodeId:Id|null }
+export interface ImportedNodePreview { id:Id;originalName:string;protocol:string;suggestedRemoteId:Id|null;candidateRemoteIds:Id[] }
+export interface ConfigImportPreview { id:Id;ownerRevision:Version;expiresAt:string;document:ProfileDocument;nodes:ImportedNodePreview[];report:ValidationReport }
+export interface BindingPreview { id:Id;ownerRevision:Version;expiresAt:string;localNodeId:Id;remoteNodeId:Id;affectedProfiles:Id[];changedFields:string[] }
+export interface BindingResult { localNodeId:Id;remoteNodeId:Id;affectedProfiles:Id[];copiedNodes:number }
