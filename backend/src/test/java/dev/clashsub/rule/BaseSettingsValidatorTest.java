@@ -14,6 +14,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BaseSettingsValidatorTest {
     private final BaseSettingsValidator validator = new BaseSettingsValidator(new SafeYaml());
     private final ReferenceIndex refs = new ReferenceIndex(Map.of("Proxy", List.of(TargetRef.group(UUID.randomUUID()))), Map.of());
+    @Test void malformedYamlPointsBackToTheBaseEditorWithItsSourceLocation() {
+        var report = validator.validate("dns: [broken", refs);
+        assertThat(report.valid()).isFalse();
+        assertThat(report.errors()).allSatisfy(issue -> {
+            assertThat(issue.path()).startsWith("baseYaml");
+            assertThat(issue.line()).isPositive();
+            assertThat(issue.column()).isPositive();
+        });
+    }
     @Test void acceptsCommonDnsPortsAndSnifferWithoutChangingYaml() {
         String yaml = """
                 mode: rule

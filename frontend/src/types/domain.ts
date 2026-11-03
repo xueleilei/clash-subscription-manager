@@ -27,3 +27,4 @@ export interface RemovalPreview { id: Id; ownerRevision: Version; expiresAt: str
 export interface ReleaseView { id: Id; profileId: Id; version: Version; definitionHash: string; yamlDigest: string; nodeCount: number; reason: string; createdAt: string }
 export interface PublishPreview { profileId: Id; expectedVersion: Version; definitionHash: string; yamlDigest: string; yaml: string | null; nodeCount: number; groupCount: number; ruleCount: number; emptyGroupIds: Id[]; sourceVersions: Record<Id, Version>; report: ValidationReport }
 export interface SubscriptionLinkData { profileId: Id; url: string; token: string }
+export interface RuleImportPreview { applicable: boolean; expectedVersion: Version; rules: RuleDefinition[]; importedRules: RuleDefinition[]; report: ValidationReport }

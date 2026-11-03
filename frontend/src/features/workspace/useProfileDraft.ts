@@ -59,7 +59,7 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
    if (current !== sequence || currentEpoch !== epoch || currentKey() !== key || disposed) return
    const active = new Set(nodes.map(node => node.id)), local = copy(target.document); let removed = 0
    for (const group of local.groups) group.members = group.members.filter(member => { if (member.kind === 'NODE' && !active.has(member.id!)) { removed++; return false }; return true })
-   for (const rule of local.rules) if (rule.target.kind === 'NODE' && !active.has(rule.target.id!)) { removed++; rule.target = { kind: 'REJECT', id: null, unresolvedName: null } }
+   for (const rule of local.rules) if (rule.target.kind === 'NODE' && !active.has(rule.target.id!)) { removed++; rule.target = { kind: 'REJECT', id: null, unresolvedName: null }; rule.issues = [...rule.issues, {severity:'WARNING',code:'REMOVED_NODE_TARGET',path:'rules',line:null,column:null,message:'原目标节点已失效，自动改为 REJECT'}] }
    target.document = local; target.version = server.version; target.baseline = encode(server.document); target.latest = server; target.diagnostics = server.diagnostics; target.serverChanged = false
    target.notice = removed ? `已保留本地编辑，并清理 ${removed} 个失效节点引用；相关直接规则已回退为 REJECT。` : '已保留本地编辑，请核对后再次保存。'
   } finally { if (current === sequence) loading.value = false }

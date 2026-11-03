@@ -1,6 +1,7 @@
 package dev.clashsub.sync;
 
 import dev.clashsub.profile.*;
+import dev.clashsub.common.Diagnostic;
 import dev.clashsub.rule.RuleDefinition;
 import java.util.*;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,9 @@ public class ReferenceReconciler {
         var rules = new ArrayList<RuleDefinition>(); var rejected = new ArrayList<UUID>();
         for (var rule : definition.rules()) {
             if (removed(rule.target(), removedNodeIds)) {
-                rules.add(new RuleDefinition(rule.id(), rule.expression(), TargetRef.reject(), rule.modifiers(), rule.rawText(), rule.issues())); rejected.add(rule.id());
+                var issues = new ArrayList<>(rule.issues());
+                issues.add(Diagnostic.warning("REMOVED_NODE_TARGET", "rules[" + rules.size() + "].target", "原目标节点已失效，自动改为 REJECT"));
+                rules.add(new RuleDefinition(rule.id(), rule.expression(), TargetRef.reject(), rule.modifiers(), rule.rawText(), issues)); rejected.add(rule.id());
             } else { rules.add(rule); }
         }
         return new ReconcileResult(new ProfileDocument(definition.schemaVersion(), definition.baseYaml(), groups, rules, definition.providers(), definition.importIssues()), removed, rejected, empty);

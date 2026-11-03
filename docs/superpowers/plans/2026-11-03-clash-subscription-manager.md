@@ -382,16 +382,16 @@
 
 **Interfaces:** RulesView props=document/diagnostics、emit=update-rules/update-providers；RuleImportDialog emit=apply(RuleImportPreview)；`useRuleOrder(rules): {moveById, insertBeforeMatch}`；BaseYamlEditor 使用 `v-model:string` 与 diagnostics prop，编辑器实例 markRaw/shallowRef 并在卸载销毁。
 
-- [ ] 写红灯：增加/编辑常用类型和 RULE-SET 选择；批量文本/文件预览有行号；有错整批不应用；MATCH 显式替换；筛选下移动按绝对顺序不扰动未显示规则；节点目标失效显示 REJECT 原因。
+- [x] 写红灯：增加/编辑常用类型和 RULE-SET 选择；批量文本/文件预览有行号；有错整批不应用；MATCH 显式替换；筛选下移动按绝对顺序不扰动未显示规则；节点目标失效显示 REJECT 原因。
   ~~~ts
   expect(allRules.map(r => r.id)).toEqual(expectedAbsoluteOrder)
   expect(importedWithErrors.applied).toBe(false)
   expect(baseEditor.text).toBe(invalidButUnsavedYaml)
   ~~~
-- [ ] 运行 `pnpm --dir frontend test --run src/features/rules/RulesView.test.ts src/features/settings/BaseYamlEditor.test.ts`，确认失败。
-- [ ] 规则使用分页/虚拟表，按 ID 操作，上下移及指定绝对位置；提供标准文本导出。高级规则原文可见、不能理解的项明确标为待处理。provider 字段合法组合及时提示；CodeMirror 编辑 base YAML，服务端返回行列错误，基础设置字段冲突指向对应管理页面。
-- [ ] 同命令和 typecheck/build 通过；2,124 规则的筛选、移动和撤回未应用的批量导入保持顺序，方案切换不共享规则集或 YAML。
-- [ ] 提交：`feat: edit ordered rules providers and base yaml`。
+- [x] 运行 `pnpm --dir frontend test --run src/features/rules/RulesView.test.ts src/features/settings/BaseYamlEditor.test.ts`，确认失败。
+- [x] 规则使用分页/虚拟表，按 ID 操作，上下移及指定绝对位置；提供标准文本导出。高级规则原文可见、不能理解的项明确标为待处理。provider 字段合法组合及时提示；CodeMirror 编辑 base YAML，服务端返回行列错误，基础设置字段冲突指向对应管理页面。
+- [x] 同命令和 typecheck/build 通过；2,124 规则的筛选、移动和撤回未应用的批量导入保持顺序，方案切换不共享规则集或 YAML。
+- [x] 提交：`feat: edit ordered rules providers and base yaml`。
 
 ## Task 18: 完整导入、绑定、校验发布与订阅链接界面
 

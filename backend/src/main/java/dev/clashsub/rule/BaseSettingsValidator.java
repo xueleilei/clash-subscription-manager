@@ -32,7 +32,10 @@ public class BaseSettingsValidator {
     public ValidationReport validate(String text, ReferenceIndex references) {
         final JsonNode root;
         try { root = yaml.load(text).value(); }
-        catch (YamlInputException exception) { return ValidationReport.of(List.of(exception.diagnostic())); }
+        catch (YamlInputException exception) {
+            var issue = exception.diagnostic();
+            return ValidationReport.of(List.of(new Diagnostic(issue.severity(), issue.code(), "baseYaml", issue.line(), issue.column(), issue.message())));
+        }
         var issues = new ArrayList<Diagnostic>();
         for (var entry : root.properties()) {
             String key = entry.getKey(), path = "baseYaml." + key; var value = entry.getValue();

@@ -21,3 +21,7 @@
 敏感数据不写 localStorage、sessionStorage、IndexedDB 或 URL。会话过期保留内存工作副本；刷新整个页面会丢失尚未保存的输入。返回 409 时保留用户输入并要求处理版本差异，不能后台覆盖或自动重发写入。
 
 三栏工作台的边界：`WorkspaceView` 只组合页面和动作；`useProfileDraft` 管理按 owner/profile 隔离的内存草稿及版本；`useNodeSelection` 持有候选节点选择。`GroupList` 接收 groups/selectedId 并发出 select/create/edit；`GroupMemberList` 接收 group/节点与组名称索引，发出 remove/reorder；`NodePicker` 接收节点、disabledIds/selectedIds，发出 toggle/add。`GroupEditorDialog` 提交完整组定义；`ConflictDialog` 提供明确的重读或保留编辑动作。候选节点采用每页 50 条的客户端分页，筛选和翻页不清除选择，切换目标组清除选择。
+
+规则以 ID 和完整列表中的绝对位置移动，分页每页 50 条；搜索只改变可见行。批量导入调用服务端只读预览，文本、MATCH 策略、草稿或版本变化会使预览失效；存在任一错误时整批不可应用。导出标准文本保留高级表达式；直接节点使用原名称，同名节点再导入需重新确认。规则集通过独立页面管理，已引用规则集必须先解除引用才能删除。
+
+基础 YAML 使用 [CodeMirror 的视图生命周期](https://codemirror.net/docs/guide/)：实例保持非响应式，输入立即进入内存工作副本，外部文本更新通过事务同步，卸载时销毁。服务端语法错误带 `baseYaml` 路径及行列；无效文本可以留在草稿中，不能通过发布校验。自动失效的直接节点规则带 `REMOVED_NODE_TARGET` 警告，编辑规则后清除旧原因。
