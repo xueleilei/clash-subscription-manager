@@ -31,6 +31,7 @@ function submit() {
 </script>
 <template><form class="form-grid" @submit.prevent="submit">
  <label>来源名称<input v-model="form.name" name="source-name" maxlength="128" required placeholder="例如：常用订阅"></label>
+ <p class="muted">可填写便于识别的别名。生成的节点名称为“原节点名 · 来源名称”，例如“中国台湾·2 · 常用订阅”。</p>
  <label>订阅地址<input v-model="form.url" name="source-url" type="url" :required="!source" autocomplete="off" :placeholder="source ? '留空保留已保存的地址' : 'https://example.com/subscribe'"></label>
  <p v-if="source" class="muted">已保存地址位于 {{ source.hostHint }}。<button type="button" class="text-button" :disabled="revealing" @click="reveal">显示已保存凭据</button></p>
  <label>出站代理<select v-model="form.outboundProxy" name="source-proxy"><option v-if="source && source.outboundProxy === undefined" value="__KEEP__">保持现有设置</option><option value="">直接连接</option><option v-for="proxy in proxyOptions" :key="proxy" :value="proxy">{{ proxy }}（可信代理）</option></select></label>

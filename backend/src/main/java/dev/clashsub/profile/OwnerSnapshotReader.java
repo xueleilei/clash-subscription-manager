@@ -26,7 +26,7 @@ public class OwnerSnapshotReader {
     public OwnerSnapshot read(UUID owner) {
         long revision = revisions.current(owner);
         var sourceStates = new LinkedHashMap<UUID, SourceState>();
-        sources.list(owner).forEach(row -> { var id = UUID.fromString(row.id()); sourceStates.put(id, new SourceState(id, row.configVersion(), row.snapshotVersion())); });
+        sources.list(owner).forEach(row -> { var id = UUID.fromString(row.id()); sourceStates.put(id, new SourceState(id, row.configVersion(), row.snapshotVersion(), row.name())); });
         var catalog = nodes.catalog(owner); var states = new LinkedHashMap<UUID, ProfileState>();
         for (var row : profiles.list(owner)) {
             var id = UUID.fromString(row.id()); var published = row.currentReleaseId() == null ? null : releases.require(owner, id, UUID.fromString(row.currentReleaseId())).snapshot();

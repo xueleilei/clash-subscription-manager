@@ -73,7 +73,7 @@ public class RefreshService {
             if (decision != null) { state.assertPending(owner, decision, source); }
             var diff = NodeDiff.calculate(sourceId, parsed, nodes.sourceHistory(owner, sourceId), before.nodes());
             var versions = new LinkedHashMap<>(before.sources());
-            versions.put(sourceId, new SourceState(sourceId, captured.configVersion(), captured.snapshotVersion() + (diff.changed() || captured.snapshotVersion() == 0 ? 1 : 0)));
+            versions.put(sourceId, new SourceState(sourceId, captured.configVersion(), captured.snapshotVersion() + (diff.changed() || captured.snapshotVersion() == 0 ? 1 : 0), captured.name()));
             var candidate = new OwnerSnapshot(owner, before.dataRevision(), versions, diff.catalog(), before.profiles());
             if (!parsed.isEmpty()) { validateEveryNode(sourceId, diff, candidate); }
             var proposal = planner.plan(before, candidate, source, diff, attempt, decision, body, false);

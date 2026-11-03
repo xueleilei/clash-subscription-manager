@@ -19,13 +19,14 @@ class SourceRemovalIT extends RefreshTestSupport {
     @Autowired SourceRemovalService removal;
     @Autowired RefreshJobStore jobs;
     @Autowired RefreshTaskRunner runner;
-    @Test void keepLocalPreservesIdsParametersGroupsAndClientBehavior() {
+    @Test void keepLocalPreservesIdsParametersAndRoutingWithLocalSourceLabel() {
         var source = source("Keep", yaml("Old")); var node = node(source, "Old"); var profile = profile("Choice", List.of(node.id()), node.id());
         var before = artifact(profile); var preview = removal.preview(owner, source); assertThat(preview.affectedProfiles()).contains(profile);
         removal.apply(owner, preview.id(), RemovalMode.KEEP_LOCAL);
         assertThatThrownBy(() -> sourceRepository.require(owner, source)).isInstanceOf(ApiException.class).extracting("status").isEqualTo(404);
         var local = nodes.connection(owner, node.id()); assertThat(local.sourceId()).isNull(); assertThat(local.connection()).isEqualTo(node.connection());
-        assertThat(artifact(profile)).isEqualTo(before); assertThat(published(profile).groups().getFirst().members()).contains(TargetRef.node(node.id()));
+        assertThat(artifact(profile)).isEqualTo(before.replace("Old · Keep", "Old · 本地节点"));
+        assertThat(published(profile).groups().getFirst().members()).contains(TargetRef.node(node.id()));
         assertThat(snapshots.read(owner).profiles().get(profile).published().sourceVersions()).doesNotContainKey(source);
     }
     @Test void clearUsesRejectCleanupAndIsAtomicWhenCoreRejects() {

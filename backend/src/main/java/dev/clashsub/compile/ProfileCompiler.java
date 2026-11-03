@@ -12,6 +12,7 @@ import dev.clashsub.profile.ReferenceValidator;
 import dev.clashsub.rule.BaseSettingsValidator;
 import dev.clashsub.rule.ProviderValidator;
 import dev.clashsub.rule.RuleValidator;
+import dev.clashsub.source.SourceState;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -44,7 +45,7 @@ public class ProfileCompiler {
         this.rules = rules; this.dependencies = dependencies; this.allocator = allocator;
     }
 
-    public CompileResult compile(UUID profileId, ProfileDocument definition, NodeCatalog catalog, Map<UUID, Long> sourceVersions) {
+    public CompileResult compile(UUID profileId, ProfileDocument definition, NodeCatalog catalog, Map<UUID, SourceState> sources) {
         if (profileId == null || definition == null || definition.schemaVersion() != 1) {
             return failed(ValidationReport.of(List.of(Diagnostic.error("INVALID_SCHEMA", "$", "配置文档版本或方案 ID 不受支持"))));
         }
@@ -54,7 +55,7 @@ public class ProfileCompiler {
         if (!report.valid()) { return failed(report); }
         var used = dependencies.resolve(definition, catalog); report = report.merge(used.report());
         if (!report.valid()) { return failed(report); }
-        var names = allocator.allocate(definition, used); report = report.merge(names.report());
+        var names = allocator.allocate(definition, used, sources); report = report.merge(names.report());
         if (!report.valid()) { return failed(report); }
         var errors = new ArrayList<Diagnostic>(); var root = yaml.load(definition.baseYaml()).value();
         var proxies = root.putArray("proxies"); var versions = new LinkedHashMap<UUID, Long>();
@@ -70,9 +71,9 @@ public class ProfileCompiler {
             if (node.dialerRef() != null) { exported.put("dialer-proxy", names.target(node.dialerRef())); }
             proxies.add(exported);
             if (node.sourceId() != null) {
-                var version = sourceVersions.get(node.sourceId());
-                if (version == null || version < 0) { errors.add(Diagnostic.error("MISSING_SOURCE_VERSION", path, "节点来源的有效快照版本缺失")); }
-                else { versions.put(node.sourceId(), version); }
+                var source = sources.get(node.sourceId());
+                if (source == null || source.snapshotVersion() < 0) { errors.add(Diagnostic.error("MISSING_SOURCE_VERSION", path, "节点来源的有效快照版本缺失")); }
+                else { versions.put(node.sourceId(), source.snapshotVersion()); }
             }
         }
         var groups = root.putArray("proxy-groups");

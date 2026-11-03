@@ -14,6 +14,7 @@ import dev.clashsub.rule.ProviderValidator;
 import dev.clashsub.rule.RuleDefinition;
 import dev.clashsub.rule.RuleExpression;
 import dev.clashsub.rule.RuleValidator;
+import dev.clashsub.source.SourceState;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -51,6 +52,20 @@ class ProfileCompilerTest {
     static ProfileDocument document(List<GroupDefinition> groups, List<RuleDefinition> rules, List<ProviderDefinition> providers) {
         return new ProfileDocument(1, "mode: rule\nmixed-port: 7890\nipv6: false\n", groups, rules, providers, List.of());
     }
+    static Map<UUID, SourceState> sources(long version) {
+        return Map.of(SOURCE, new SourceState(SOURCE, 1L, version, "机场甲"));
+    }
+
+    @Test void localNodesHaveReadableNamesInGroupsAndDirectRules() {
+        var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A))),
+                List.of(rule("MATCH", "", TargetRef.node(A))), List.of());
+        var result = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, null, "我的节点", null))), Map.of());
+        assertThat(result.report().errors()).isEmpty();
+        var output = YAML.load(result.compiled().yaml()).value();
+        assertThat(output.path("proxies").path(0).path("name").asString()).isEqualTo("我的节点 · 本地节点");
+        assertThat(output.path("proxy-groups").path(0).path("proxies").path(0).asString()).isEqualTo("我的节点 · 本地节点");
+        assertThat(output.path("rules").path(0).asString()).isEqualTo("MATCH,我的节点 · 本地节点");
+    }
 
     @Test void includesAllDefinedGroupsNestedRulesAndDialerDependenciesButNotUnusedNodes() {
         var sourceB = UUID.randomUUID(); var unused = UUID.randomUUID(); var nested = UUID.randomUUID();
@@ -58,13 +73,19 @@ class ProfileCompilerTest {
                 DIALER, node(DIALER, SOURCE, "Dialer", null), unused, node(unused, SOURCE, "Unused", null)));
         var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.group(nested)), group(nested, "Nested", "select", TargetRef.node(A))),
                 List.of(rule("DOMAIN", "fixture.invalid", TargetRef.node(B)), rule("MATCH", "", TargetRef.group(GROUP))), List.of());
-        var result = compiler().compile(PROFILE, doc, nodes, Map.of(SOURCE, 3L, sourceB, 7L));
+        var result = compiler().compile(PROFILE, doc, nodes, Map.of(SOURCE, new SourceState(SOURCE, 1L, 3L, "机场甲"),
+                sourceB, new SourceState(sourceB, 1L, 7L, "机场乙")));
         assertThat(result.report().errors()).isEmpty(); var compiled = result.compiled();
         assertThat(compiled.usedNodeIds()).containsExactlyInAnyOrder(A, B, DIALER);
         var root = YAML.load(compiled.yaml()).value();
         assertThat(root.path("proxies").size()).isEqualTo(3);
-        assertThat(root.path("proxies").path(0).path("name").asString()).isNotEqualTo(root.path("proxies").path(1).path("name").asString());
-        assertThat(root.path("proxies").path(0).path("dialer-proxy").asString()).isEqualTo(root.path("proxies").path(2).path("name").asString());
+        assertThat(root.path("proxies").path(0).path("name").asString()).isEqualTo("Same · 机场甲");
+        assertThat(root.path("proxies").path(1).path("name").asString()).isEqualTo("Same · 机场乙");
+        assertThat(root.path("proxies").path(2).path("name").asString()).isEqualTo("Dialer · 机场甲");
+        assertThat(root.path("proxies").path(0).path("dialer-proxy").asString()).isEqualTo("Dialer · 机场甲");
+        assertThat(root.path("proxy-groups").path(1).path("proxies").path(0).asString()).isEqualTo("Same · 机场甲");
+        assertThat(root.path("rules").path(0).asString()).isEqualTo("DOMAIN,fixture.invalid,Same · 机场乙");
+        assertThat(compiled.sourceVersions()).containsExactlyInAnyOrderEntriesOf(Map.of(SOURCE, 3L, sourceB, 7L));
         assertThat(root.path("mixed-port").asInt()).isEqualTo(7890); assertThat(root.path("ipv6").asBoolean()).isFalse();
     }
 
@@ -82,16 +103,16 @@ class ProfileCompilerTest {
 
     @Test void failsOnMixedNodeGroupCyclesAndMissingDialerDependencies() {
         var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A))), List.of(rule("MATCH", "", TargetRef.group(GROUP))), List.of());
-        var cycle = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Cycle", TargetRef.group(GROUP)))), Map.of(SOURCE, 1L));
+        var cycle = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Cycle", TargetRef.group(GROUP)))), sources(1L));
         assertThat(cycle.report().errors()).extracting(Diagnostic::code).contains("DEPENDENCY_CYCLE"); assertThat(cycle.compiled()).isNull();
-        var missing = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Missing", TargetRef.node(B)))), Map.of(SOURCE, 1L));
+        var missing = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Missing", TargetRef.node(B)))), sources(1L));
         assertThat(missing.report().errors()).extracting(Diagnostic::code).contains("MISSING_DEPENDENCY");
     }
 
-    @Test void blocksOutputNameCollisionsDynamicOptionsAndManagedFieldOverrides() {
-        String outputName = "Same · MAAAAAAAAAAAAAAAAAAAAQ";
+    @Test void blocksReservedGroupNamesDynamicOptionsAndManagedFieldOverrides() {
+        String outputName = "PASS-RULE";
         var doc = document(List.of(group(GROUP, outputName, "select", TargetRef.node(A))), List.of(rule("MATCH", "", TargetRef.group(GROUP))), List.of());
-        assertThat(compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Same", null))), Map.of(SOURCE, 1L)).report().errors())
+        assertThat(compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Same", null))), sources(1L)).report().errors())
                 .extracting(Diagnostic::code).contains("OUTPUT_NAME_COLLISION");
         for (String option : List.of("include-all", "proxies", "unknown-option", "dialer-proxy")) {
             var group = new GroupDefinition(GROUP, "Main", "select", List.of(), JSON.createObjectNode().put(option, true));
@@ -102,7 +123,7 @@ class ProfileCompilerTest {
     @Test void yamlMetacharactersInNodeNamesCannotInjectKeysOrRules() {
         var dangerous = node(A, SOURCE, "node: 'x'\nproxies: [] # fixture", null);
         var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A))), List.of(rule("MATCH", "", TargetRef.group(GROUP))), List.of());
-        var result = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, dangerous)), Map.of(SOURCE, 1L));
+        var result = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, dangerous)), sources(1L));
         assertThat(result.report().errors()).isEmpty();
         var output = YAML.load(result.compiled().yaml()).value();
         assertThat(output.path("proxies").size()).isEqualTo(1); assertThat(output.path("rules").size()).isEqualTo(1);
@@ -113,9 +134,72 @@ class ProfileCompilerTest {
         var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A), TargetRef.node(B))), List.of(rule("MATCH", "", TargetRef.group(GROUP))), List.of());
         var one = new LinkedHashMap<UUID, NodeSpec>(); one.put(A, node(A, SOURCE, "节点 ", null)); one.put(B, node(B, SOURCE, "Node", null));
         var two = new LinkedHashMap<UUID, NodeSpec>(); two.put(B, one.get(B)); two.put(A, one.get(A));
-        assertThat(compiler().compile(PROFILE, doc, new NodeCatalog(one), Map.of(SOURCE, 1L)).compiled().yaml())
-                .isEqualTo(compiler().compile(PROFILE, doc, new NodeCatalog(two), Map.of(SOURCE, 1L)).compiled().yaml());
+        assertThat(compiler().compile(PROFILE, doc, new NodeCatalog(one), sources(1L)).compiled().yaml())
+                .isEqualTo(compiler().compile(PROFILE, doc, new NodeCatalog(two), sources(1L)).compiled().yaml());
     }
+
+    @Test void duplicateSourceAndNodeNamesReceiveStableDistinctSuffixes() {
+        var otherSource = UUID.fromString("20000000-0000-0000-0000-000000000002");
+        var sameNames = Map.of(SOURCE, new SourceState(SOURCE, 1L, 1L, "同名订阅"),
+                otherSource, new SourceState(otherSource, 1L, 1L, "同名订阅"));
+        var first = node(A, SOURCE, "香港", null);
+        var second = node(B, otherSource, "香港", TargetRef.node(A));
+        var forward = new LinkedHashMap<UUID, NodeSpec>(); forward.put(A, first); forward.put(B, second);
+        var reversed = new LinkedHashMap<UUID, NodeSpec>(); reversed.put(B, second); reversed.put(A, first);
+        var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A), TargetRef.node(B))),
+                List.of(rule("MATCH", "", TargetRef.node(B))), List.of());
+
+        var result = compiler().compile(PROFILE, doc, new NodeCatalog(forward), sameNames);
+        assertThat(result.report().errors()).isEmpty();
+        var output = YAML.load(result.compiled().yaml()).value();
+        var names = output.path("proxies").valueStream().map(value -> value.path("name").asString()).toList();
+        assertThat(names).doesNotHaveDuplicates().allSatisfy(name -> assertThat(name).startsWith("香港 · 同名订阅 · "));
+        assertThat(output.path("proxy-groups").path(0).path("proxies").valueStream().map(value -> value.asString()).toList())
+                .containsExactlyElementsOf(names);
+        assertThat(output.path("proxies").path(1).path("dialer-proxy").asString()).isEqualTo(names.getFirst());
+        assertThat(output.path("rules").path(0).asString()).isEqualTo("MATCH," + names.get(1));
+        assertThat(compiler().compile(PROFILE, doc, new NodeCatalog(reversed), sameNames).compiled().yaml())
+                .isEqualTo(result.compiled().yaml());
+    }
+
+    @Test void nodeNameCannotShadowAnExistingGroup() {
+        var doc = document(List.of(group(GROUP, "Same · 机场甲", "select", TargetRef.node(A))),
+                List.of(rule("MATCH", "", TargetRef.group(GROUP))), List.of());
+        var result = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "Same", null))), sources(1L));
+        assertThat(result.report().errors()).isEmpty();
+        var output = YAML.load(result.compiled().yaml()).value();
+        assertThat(output.path("proxies").path(0).path("name").asString()).isEqualTo("Same · 机场甲 · 30000000");
+        assertThat(output.path("proxy-groups").path(0).path("proxies").path(0).asString()).isEqualTo("Same · 机场甲 · 30000000");
+        assertThat(output.path("rules").path(0).asString()).isEqualTo("MATCH,Same · 机场甲");
+    }
+
+    @Test void collisionSuffixDoesNotTakeAnotherNodesReadableName() {
+        var otherSource = UUID.fromString("20000000-0000-0000-0000-000000000002");
+        var sourceNames = Map.of(SOURCE, new SourceState(SOURCE, 1L, 1L, "机场甲"),
+                otherSource, new SourceState(otherSource, 1L, 1L, "30000000"));
+        var catalog = new NodeCatalog(Map.of(A, node(A, SOURCE, "Same", null), B, node(B, SOURCE, "Same", null),
+                DIALER, node(DIALER, otherSource, "Same · 机场甲", null)));
+        var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A), TargetRef.node(B), TargetRef.node(DIALER))),
+                List.of(rule("MATCH", "", TargetRef.group(GROUP))), List.of());
+        var result = compiler().compile(PROFILE, doc, catalog, sourceNames);
+        assertThat(result.report().errors()).isEmpty();
+        var output = YAML.load(result.compiled().yaml()).value();
+        assertThat(output.path("proxies").valueStream().map(value -> value.path("name").asString()).toList()).doesNotHaveDuplicates();
+        assertThat(output.path("proxies").path(2).path("name").asString()).isEqualTo("Same · 机场甲 · 30000000");
+    }
+
+    @Test void sourceLabelCannotIntroduceRuleDelimitersOrExtraLines() {
+        var sourceNames = Map.of(SOURCE, new SourceState(SOURCE, 1L, 1L, "  机场,甲\nREJECT\t "));
+        var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A))),
+                List.of(rule("MATCH", "", TargetRef.node(A))), List.of());
+        var result = compiler().compile(PROFILE, doc, new NodeCatalog(Map.of(A, node(A, SOURCE, "香港", null))), sourceNames);
+        assertThat(result.report().errors()).isEmpty();
+        var output = YAML.load(result.compiled().yaml()).value();
+        assertThat(output.path("proxies").path(0).path("name").asString()).isEqualTo("香港 · 机场，甲 REJECT");
+        assertThat(output.path("rules").size()).isEqualTo(1);
+        assertThat(output.path("rules").path(0).asString()).isEqualTo("MATCH,香港 · 机场，甲 REJECT");
+    }
+
     @Test void missingGroupTypeReturnsDiagnosticsEvenWhenOptionsArePresent() {
         var incomplete = new GroupDefinition(GROUP, "Incomplete", null, List.of(), JSON.createObjectNode().put("tolerance", 50));
         var result = compiler().compile(PROFILE, document(List.of(incomplete), List.of(rule("MATCH", "", TargetRef.reject())), List.of()), NodeCatalog.empty(), Map.of());

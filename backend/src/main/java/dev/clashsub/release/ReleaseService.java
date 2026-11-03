@@ -31,8 +31,7 @@ public class ReleaseService {
     }
     @Transactional(propagation = Propagation.NEVER)
     public PreparedRelease prepare(UUID profileId, ProfileDocument document, OwnerSnapshot snapshot) {
-        var versions = new LinkedHashMap<UUID, Long>(); snapshot.sources().forEach((id, source) -> versions.put(id, source.snapshotVersion()));
-        var compiled = compiler.compile(profileId, document, snapshot.nodes(), versions); var report = compiled.report();
+        var compiled = compiler.compile(profileId, document, snapshot.nodes(), snapshot.sources()); var report = compiled.report();
         if (compiled.valid()) { report = report.merge(core.validate(compiled.compiled().yaml())); }
         return new PreparedRelease(document, compiled.compiled(), report, snapshot.nodes());
     }
