@@ -104,11 +104,14 @@ public class ProfileCompiler {
             String payload = expression.providerId() == null ? expression.value() : names.providers().get(expression.providerId());
             String line = expression.type() + (expression.type().equals("MATCH") ? "" : "," + payload) + "," + target;
             if (!rule.modifiers().isEmpty()) { line += "," + String.join(",", rule.modifiers()); }
+            if (line.chars().anyMatch(c -> c < 32 || c == 127 || c == 0x85 || c == 0x2028 || c == 0x2029)) {
+                errors.add(Diagnostic.error("MULTILINE_RULE", "rules[" + i + "]", "规则及引用名称必须为单行文本")); continue;
+            }
             ruleOutput.add(line);
         }
         report = report.merge(ValidationReport.of(errors));
         if (!report.valid()) { return failed(report); }
-        String output = yaml.dump(new YamlDocument(root));
+        String output = dev.clashsub.rule.RuleYamlComments.write(yaml.dump(new YamlDocument(root)), definition.rules());
         if (output.getBytes(StandardCharsets.UTF_8).length > SafeYaml.MAX_BYTES) {
             return failed(report.merge(ValidationReport.of(List.of(Diagnostic.error("OUTPUT_LIMIT", "$", "编译输出超过 10 MiB")))));
         }

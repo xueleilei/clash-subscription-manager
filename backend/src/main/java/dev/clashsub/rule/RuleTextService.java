@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 /** Whole-list text editing is a preview; persistence remains in the existing draft/publish flow. */
 @Service
 public class RuleTextService {
-    private static final Pattern QUOTED_NAME = Pattern.compile("[,\"'()\\\\]|^\\s|\\s$");
+    private static final Pattern QUOTED_NAME = Pattern.compile("[,#\"'()\\\\]|^\\s|\\s$");
     private final RuleParser parser;
     private final RuleValidator validator;
     private final OutputNameAllocator allocator;
@@ -34,7 +34,7 @@ public class RuleTextService {
 
     public RuleTextDocument text(DraftSnapshot draft, NodeCatalog catalog, Map<UUID, SourceState> sources, long ownerRevision) {
         var names = names(draft, catalog, sources);
-        String text = String.join("\n", draft.document().rules().stream().map(rule -> format(rule, names)).toList());
+        String text = String.join("\n", draft.document().rules().stream().map(rule -> rule.trivia().render(format(rule, names))).toList());
         return new RuleTextDocument(Long.toString(draft.version()), text.isEmpty() ? "" : text + "\n", draft.document().rules().size(), Long.toString(ownerRevision));
     }
 
@@ -70,7 +70,9 @@ public class RuleTextService {
         String target = names.target(rule.target());
         fields.add(quote(target == null ? rule.target().unresolvedName() : target));
         fields.addAll(rule.modifiers());
-        return String.join(",", fields);
+        String line = String.join(",", fields);
+        // A literal whitespace/hash inside a payload must not be re-read as an inline comment.
+        return RuleLexer.commentStart(line) < 0 ? line : "- '" + line.replace("'", "''") + "'";
     }
 
     private String quote(String name) {
@@ -88,7 +90,7 @@ public class RuleTextService {
         var rules = new ArrayList<RuleDefinition>();
         for (var rule : parsed) {
             var matches = existing.get(key(rule));
-            rules.add(matches == null || matches.isEmpty() ? rule : matches.removeFirst());
+            rules.add(matches == null || matches.isEmpty() ? rule : matches.removeFirst().withTrivia(rule.trivia()));
         }
         return List.copyOf(rules);
     }

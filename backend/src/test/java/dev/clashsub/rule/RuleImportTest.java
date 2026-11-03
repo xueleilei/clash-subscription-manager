@@ -29,6 +29,14 @@ class RuleImportTest {
         assertThat(service.preview(draft(), "MATCH,DIRECT\nDOMAIN,x.invalid,REJECT", MatchPolicy.REPLACE).applicable()).isFalse();
         assertThat(service.preview(draft(), "MATCH,DIRECT\nMATCH,REJECT", MatchPolicy.REPLACE).applicable()).isFalse();
     }
+    @Test void replacingFallbackDoesNotDiscardExistingSectionAndFooterComments() {
+        var original = draft(); var fallback = original.document().rules().getFirst().withTrivia(new RuleTrivia(List.of("# 旧兜底说明"), " # 旧行内说明", List.of("# 文件尾注")));
+        var document = new ProfileDocument(1, original.document().baseYaml(), List.of(), List.of(fallback), List.of(), List.of());
+        var result = service.preview(new DraftSnapshot(original.profileId(), 5, document), "# 新兜底\nMATCH,DIRECT # 新行内说明", MatchPolicy.REPLACE);
+        assertThat(result.applicable()).isTrue(); assertThat(result.rules()).hasSize(1);
+        assertThat(result.rules().getFirst().trivia().render("MATCH,DIRECT"))
+                .isEqualTo("# 旧兜底说明\n# 旧行内说明\n# 新兜底\nMATCH,DIRECT # 新行内说明\n# 文件尾注");
+    }
     @Test void anyInvalidLineKeepsEntireExistingRuleList() {
         var original = draft(); var result = service.preview(original, "DOMAIN,a.invalid,DIRECT\nUNKNOWN,b,REJECT", MatchPolicy.KEEP);
         assertThat(result.applicable()).isFalse(); assertThat(result.rules()).isEqualTo(original.document().rules());

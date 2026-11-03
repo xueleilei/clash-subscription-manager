@@ -38,6 +38,25 @@ class RuleTextIT extends MySqlIntegrationTest {
         return new RuleDefinition(UUID.randomUUID(), new RuleExpression("DOMAIN", value, null), target, List.of(), "", List.of());
     }
 
+    @Test void commentsSurviveHttpPreviewDraftSaveAndReadWithoutPublishing() throws Exception {
+        var owner = admin(); var draft = profiles.create(owner, "Comment persistence"); var client = client();
+        String path = "/api/v1/profiles/" + draft.profileId();
+        String text = "# === 局域网直连 ===\n- DOMAIN-SUFFIX,local,DIRECT\n\n# === 分流规则 ===\n- MATCH,REJECT # 兜底\n# 文件末尾\n";
+        var loaded = client.data(client.send("POST", path + "/rule-text", Map.of("expectedVersion", "1")));
+        var preview = client.data(client.send("POST", path + "/rule-text/preview", Map.of("expectedVersion", "1", "ownerRevision", loaded.path("ownerRevision").asString(), "text", text)));
+        assertThat(preview.path("applicable").asBoolean()).isTrue();
+        var document = (tools.jackson.databind.node.ObjectNode) json.valueToTree(draft.document()); document.set("rules", preview.path("rules"));
+        var saved = client.send("PUT", path + "/draft", Map.of("expectedVersion", "1", "document", document));
+        assertThat(saved.statusCode()).isEqualTo(200);
+        var reopened = client.data(client.send("POST", path + "/rule-text", Map.of("expectedVersion", "2")));
+        assertThat(reopened.path("text").asString()).isEqualTo(text.replace("- ", ""));
+        assertThat(jdbc.queryForObject("SELECT current_release_id FROM configuration_profile WHERE id=?", String.class, draft.profileId().toString())).isNull();
+        var trivia = (tools.jackson.databind.node.ObjectNode) document.path("rules").path(0).path("trivia");
+        trivia.putArray("leading").add("# safe\n- MATCH,DIRECT");
+        assertThat(client.send("PUT", path + "/draft", Map.of("expectedVersion", "2", "document", document)).statusCode()).isEqualTo(400);
+        assertThat(profiles.load(owner, draft.profileId()).version()).isEqualTo(2);
+    }
+
     @Test void fullTextUsesUnsavedRulesAndSourceQualifiedNodesWithoutChangingTheDraft() throws Exception {
         var owner = admin(); var draft = profiles.create(owner, "Text edit");
         var first = sources.save(owner, new SourceCommand(null, null, "机场甲", false, null, null, "https://fixture.invalid/one", Map.of(), "", ""));

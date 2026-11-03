@@ -16,17 +16,30 @@ import org.springframework.stereotype.Component;
 @Component
 public class RuleParser {
     public RuleParseResult parse(String text, ReferenceIndex references) {
+        return parse(text, references, true);
+    }
+    public RuleParseResult parseValues(List<String> values, ReferenceIndex references) {
+        return parse(String.join("\n", values), references, false);
+    }
+    private RuleParseResult parse(String text, ReferenceIndex references, boolean collectComments) {
         var rules = new ArrayList<RuleDefinition>(); var issues = new ArrayList<Diagnostic>();
         if (text == null || text.length() > SafeYaml.MAX_BYTES || text.getBytes(StandardCharsets.UTF_8).length > SafeYaml.MAX_BYTES) {
             return new RuleParseResult(List.of(), ValidationReport.of(List.of(Diagnostic.error("RULE_INPUT_LIMIT", "rules", "规则文本超过大小限制"))));
         }
-        String[] lines = text.split("\\R", -1);
+        String[] lines = text.split("\\R", -1); var pending = new ArrayList<String>();
         for (int line = 0; line < lines.length; line++) {
             String raw = lines[line]; String value = raw.strip();
-            if (value.isEmpty() || value.startsWith("#")) { continue; }
+            if (line == lines.length - 1 && raw.isEmpty()) { continue; }
+            if (collectComments && (value.isEmpty() || value.startsWith("#"))) { pending.add(raw); continue; }
             if (rules.size() >= 10_000) { issues.add(at("RULE_INPUT_LIMIT", rules.size(), line + 1, "规则最多 10000 条")); break; }
+            int comment = collectComments ? RuleLexer.commentStart(raw) : -1; String inline = "";
+            if (comment >= 0) {
+                while (comment > 0 && Character.isWhitespace(raw.charAt(comment - 1))) { comment--; }
+                inline = raw.substring(comment); raw = raw.substring(0, comment); value = raw.strip();
+            }
+            var trivia = new RuleTrivia(pending, inline, List.of()); pending.clear();
             try {
-                if (value.startsWith("- ")) {
+                if (collectComments && value.startsWith("- ")) {
                     var parsed = new SafeYaml().load("rules:\n  " + value + "\n").value().path("rules").path(0);
                     if (!parsed.isString()) { throw RuleLexer.invalid(); } value = parsed.asString();
                 }
@@ -52,13 +65,17 @@ public class RuleParser {
                     provider = references.providers().get(RuleLexer.name(payload));
                     if (provider == null) { rowIssues.add(at("MISSING_PROVIDER", rules.size(), line + 1, "规则集不在当前方案中")); }
                 }
-                rules.add(new RuleDefinition(UUID.randomUUID(), new RuleExpression(type, payload, provider), target, modifiers, raw, rowIssues));
+                rules.add(new RuleDefinition(UUID.randomUUID(), new RuleExpression(type, payload, provider), target, modifiers, raw, rowIssues, trivia));
                 issues.addAll(rowIssues);
             } catch (RuleSyntaxException | YamlInputException exception) {
                 String code = exception instanceof RuleSyntaxException syntax ? syntax.code() : "RULE_SYNTAX";
                 var issue = at(code, rules.size(), line + 1, exception.getMessage()); issues.add(issue);
-                rules.add(new RuleDefinition(UUID.randomUUID(), new RuleExpression("UNSUPPORTED", "", null), TargetRef.unresolved(""), List.of(), raw, List.of(issue)));
+                rules.add(new RuleDefinition(UUID.randomUUID(), new RuleExpression("UNSUPPORTED", "", null), TargetRef.unresolved(""), List.of(), raw, List.of(issue), trivia));
             }
+        }
+        if (!pending.isEmpty() && !rules.isEmpty()) {
+            var last = rules.getLast();
+            rules.set(rules.size() - 1, last.withTrivia(new RuleTrivia(last.trivia().leading(), last.trivia().inline(), pending)));
         }
         return new RuleParseResult(rules, ValidationReport.of(issues));
     }

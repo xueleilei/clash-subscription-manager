@@ -6,6 +6,22 @@ import java.util.List;
 /** Keeps commas inside balanced expressions or quoted text intact. */
 final class RuleLexer {
     private RuleLexer() { }
+    static int commentStart(String text) {
+        char quote = 0; boolean escaped = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\') { escaped = true; continue; }
+            if (quote != 0) {
+                if (c == quote) {
+                    if (i + 1 < text.length() && text.charAt(i + 1) == quote) { i++; }
+                    else { quote = 0; }
+                }
+            } else if (c == '\'' || c == '"') { quote = c; }
+            else if (c == '#' && (i == 0 || Character.isWhitespace(text.charAt(i - 1)))) { return i; }
+        }
+        return -1;
+    }
     static List<String> split(String text) {
         var result = new ArrayList<String>(); int start = 0, depth = 0; char quote = 0; boolean escaped = false;
         for (int i = 0; i < text.length(); i++) {

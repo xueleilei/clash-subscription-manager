@@ -21,7 +21,7 @@ public class ReferenceReconciler {
             if (removed(rule.target(), removedNodeIds)) {
                 var issues = new ArrayList<>(rule.issues());
                 issues.add(Diagnostic.warning("REMOVED_NODE_TARGET", "rules[" + rules.size() + "].target", "原目标节点已失效，自动改为 REJECT"));
-                rules.add(new RuleDefinition(rule.id(), rule.expression(), TargetRef.reject(), rule.modifiers(), rule.rawText(), issues)); rejected.add(rule.id());
+                rules.add(new RuleDefinition(rule.id(), rule.expression(), TargetRef.reject(), rule.modifiers(), rule.rawText(), issues, rule.trivia())); rejected.add(rule.id());
             } else { rules.add(rule); }
         }
         return new ReconcileResult(new ProfileDocument(definition.schemaVersion(), definition.baseYaml(), groups, rules, definition.providers(), definition.importIssues()), removed, rejected, empty);

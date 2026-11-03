@@ -24,7 +24,7 @@ const lifetime=new AbortController();onScopeDispose(()=>lifetime.abort())
 function edit(rule:RuleDefinition|null){editing.value=rule;editorOpen.value=true}
 function applyRule(rule:RuleDefinition){emit('updateRules',props.document.rules.some(value=>value.id===rule.id)?props.document.rules.map(value=>value.id===rule.id?rule:value):order.insertBeforeMatch(rule));editorOpen.value=false}
 function move(id:string,position:number){emit('updateRules',order.moveById(id,position));positions.value={}}
-function remove(id:string){emit('updateRules',props.document.rules.filter(rule=>rule.id!==id||rule.expression.type==='MATCH'))}
+function remove(id:string){emit('updateRules',order.removeById(id))}
 function editProvider(provider:ProviderDefinition|null){editingProvider.value=provider;providerOpen.value=true}
 function applyProvider(provider:ProviderDefinition){emit('updateProviders',props.document.providers.some(item=>item.id===provider.id)?props.document.providers.map(item=>item.id===provider.id?provider:item):[...props.document.providers,provider]);providerOpen.value=false}
 const usedProviders=computed(()=>new Set(props.document.rules.flatMap(rule=>rule.expression.providerId?[rule.expression.providerId]:[])))

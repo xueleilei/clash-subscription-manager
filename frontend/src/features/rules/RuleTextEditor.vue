@@ -54,7 +54,7 @@ onMounted(loadText)
 <template>
  <ElDialog :model-value="true" title="编辑完整规则文本" width="min(1100px, calc(100vw - 24px))" top="4vh" :close-on-click-modal="false" :close-on-press-escape="false" @close="emit('close')">
   <div class="rule-text-body">
-   <p class="muted">编辑当前工作副本的全部规则，每行一条，末尾保留一条 MATCH。校验通过后整体替换规则列表，仍需保存草稿或发布。</p>
+   <p class="muted">编辑当前工作副本的全部规则，保留 # 注释和空行，末尾保留一条 MATCH。校验通过后整体替换规则列表，仍需保存草稿或发布。</p>
    <div v-if="loaded" class="toolbar text-meta"><span>原规则 {{ originalCount }} 条 · 当前 {{ lineCount }} 行</span><span><kbd>⌘F / Ctrl+F</kbd> 查找与替换 · 支持撤销</span></div>
    <RuleTextCodeEditor v-if="loaded" v-model="text" />
    <p v-else-if="busy" class="muted">正在读取全部规则…</p>

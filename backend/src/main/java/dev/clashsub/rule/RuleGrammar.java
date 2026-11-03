@@ -22,7 +22,7 @@ final class RuleGrammar {
         if (type == null || (!SIMPLE.contains(type) && !LOGICAL.contains(type) && !REGEX.contains(type))) {
             throw new RuleSyntaxException("UNSUPPORTED_RULE", "此规则类型尚不支持，请保留草稿并调整后发布");
         }
-        if (depth > 32 || value == null || value.length() > 65_536 || value.chars().anyMatch(c -> c < 32 || c == 127)) { throw RuleLexer.invalid(); }
+        if (depth > 32 || value == null || value.length() > 65_536 || value.chars().anyMatch(c -> c < 32 || c == 127 || c == 0x85 || c == 0x2028 || c == 0x2029)) { throw RuleLexer.invalid(); }
         if (type.equals("MATCH")) {
             if (!value.isEmpty() || !modifiers.isEmpty()) { throw RuleLexer.invalid(); }
             return;

@@ -8,7 +8,8 @@ export interface User { id: Id; username: string }
 export interface Credentials { username: string; password: string }
 export interface TargetRef { kind: 'NODE' | 'GROUP' | 'DIRECT' | 'REJECT' | 'UNRESOLVED'; id: Id | null; unresolvedName: string | null }
 export interface GroupDefinition { id: Id; name: string; type: string; members: TargetRef[]; options: JsonObject }
-export interface RuleDefinition { id: Id; expression: { type: string; value: string | null; providerId: Id | null }; target: TargetRef; modifiers: string[]; rawText: string | null; issues: Diagnostic[] }
+export interface RuleTrivia { leading: string[]; inline: string; trailing: string[] }
+export interface RuleDefinition { id: Id; expression: { type: string; value: string | null; providerId: Id | null }; target: TargetRef; modifiers: string[]; rawText: string | null; issues: Diagnostic[]; trivia?: RuleTrivia }
 export interface ProviderDefinition { id: Id; name: string; type: string; url: string | null; behavior: string; format: string; interval: number; options: JsonObject }
 export interface ProfileDocument { schemaVersion: number; baseYaml: string; groups: GroupDefinition[]; rules: RuleDefinition[]; providers: ProviderDefinition[]; importIssues: Diagnostic[] }
 export interface DraftView { profileId: Id; version: Version; document: ProfileDocument; diagnostics: ValidationReport }

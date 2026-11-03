@@ -70,10 +70,11 @@ public class FullConfigDecoder {
         nodes.replaceAll((id, node) -> new NodeSpec(id, null, node.originalName(), node.protocol(), node.connection(),
                 node.dialerRef() == null ? null : index.resolve(node.dialerRef().unresolvedName())));
         var ruleLines = new ArrayList<String>();
-        for (var row : ruleRows) { if (!row.isString() || row.asString().contains("\n") || row.asString().contains("\r")) { throw ApiException.invalid("规则必须为单行文本"); } ruleLines.add(row.asString()); }
-        var parsedRules = ruleParser.parse(String.join("\n", ruleLines), index);
+        for (var row : ruleRows) { if (!row.isString() || row.asString().isBlank() || row.asString().matches("(?s).*\\R.*")) { throw ApiException.invalid("规则必须为非空单行文本"); } ruleLines.add(row.asString()); }
+        var parsedRules = ruleParser.parseValues(ruleLines, index);
+        var commentedRules = RuleYamlComments.read(text, parsedRules.rules());
         var base = root.deepCopy(); base.remove(List.of("proxies", "proxy-groups", "rule-providers", "rules"));
-        var document = new ProfileDocument(1, yaml.dump(new YamlDocument(base)), groups, parsedRules.rules(), providerDefinitions, List.of());
+        var document = new ProfileDocument(1, yaml.dump(new YamlDocument(base)), groups, commentedRules, providerDefinitions, List.of());
         var catalog = new NodeCatalog(nodes);
         var report = ValidationReport.of(nodeDiagnostics).merge(parsedRules.report()).merge(references.validate(document, catalog))
                 .merge(settings.validate(document.baseYaml(), index)).merge(providers.validate(providerDefinitions)).merge(rules.validate(document.rules()))

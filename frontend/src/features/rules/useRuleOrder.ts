@@ -9,5 +9,19 @@ export function useRuleOrder(rules: MaybeRefOrGetter<readonly RuleDefinition[]>)
   next.splice(position, 0, item!); return next
  }
  function insertBeforeMatch(rule: RuleDefinition) { const next = [...toValue(rules)], index = next.findIndex(item => item.expression.type === 'MATCH'); next.splice(index < 0 ? next.length : index, 0, rule); return next }
- return { moveById, insertBeforeMatch }
+ function removeById(id: string) {
+  const next=[...toValue(rules)],index=next.findIndex(rule=>rule.id===id)
+  if(index<0||next[index]!.expression.type==='MATCH')return next
+  const [removed]=next.splice(index,1),trivia=removed!.trivia
+  const notes=[...trivia?.leading??[],...(trivia?.inline?.trim()? [trivia.inline.trimStart()]:[]),...trivia?.trailing??[]]
+  if(notes.length&&next[index]) {
+   const following=next[index]!
+   next[index]={...following,trivia:{leading:[...notes,...following.trivia?.leading??[]],inline:following.trivia?.inline??'',trailing:following.trivia?.trailing??[]}}
+  } else if(notes.length&&next.length) {
+   const previous=next.at(-1)!
+   next[next.length-1]={...previous,trivia:{leading:previous.trivia?.leading??[],inline:previous.trivia?.inline??'',trailing:[...previous.trivia?.trailing??[],...notes]}}
+  }
+  return next
+ }
+ return { moveById, insertBeforeMatch, removeById }
 }

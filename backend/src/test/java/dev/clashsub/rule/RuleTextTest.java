@@ -25,6 +25,40 @@ class RuleTextTest {
         return new DraftSnapshot(UUID.randomUUID(), 8, new ProfileDocument(1, "mode: rule\n", List.of(), rules, List.of(), List.of()));
     }
 
+    @Test void commentSectionsBlankLinesAndFooterSurviveApplyAndReopen() {
+        var original = draft(List.of());
+        String input = "# === 局域网直连 ===\n- DOMAIN-SUFFIX,local,DIRECT\n- IP-CIDR,192.168.0.0/16,DIRECT,no-resolve\n\n# === 分流规则 ===\n- GEOSITE,CN,DIRECT\n- MATCH,REJECT\n# 保留文件末尾说明\n\n";
+        var preview = service.preview(original, input, NodeCatalog.empty(), Map.of());
+        assertThat(preview.applicable()).isTrue(); assertThat(preview.rules()).hasSize(4);
+        var applied = draft(preview.rules());
+        String output = service.text(applied, NodeCatalog.empty(), Map.of(), 10L).text();
+        assertThat(output).isEqualTo(input.replace("- ", ""));
+        var edited = service.preview(applied, output.replace("局域网直连", "本地网络直连"), NodeCatalog.empty(), Map.of());
+        assertThat(edited.rules()).extracting(RuleDefinition::id).containsExactlyElementsOf(applied.document().rules().stream().map(RuleDefinition::id).toList());
+        assertThat(service.text(draft(edited.rules()), NodeCatalog.empty(), Map.of(), 10L).text()).contains("# === 本地网络直连 ===").doesNotContain("# === 局域网直连 ===");
+    }
+
+    @Test void inlineCommentsDoNotBecomeRuleTargetsAndQuotedHashesStayInNames() {
+        var groupId = UUID.randomUUID();
+        var group = new GroupDefinition(groupId, "我的 # 代理", "select", List.of(), JsonNodeFactory.instance.objectNode());
+        var original = new DraftSnapshot(UUID.randomUUID(), 8, new ProfileDocument(1, "mode: rule\n", List.of(group), List.of(), List.of(), List.of()));
+        String input = "DOMAIN,example.invalid,'我的 # 代理' # 网站走代理\nMATCH,REJECT # 兜底拒绝\n";
+        var preview = service.preview(original, input, NodeCatalog.empty(), Map.of());
+        assertThat(preview.report().errors()).isEmpty();
+        assertThat(preview.rules().getFirst().target()).isEqualTo(TargetRef.group(groupId));
+        var applied = new DraftSnapshot(original.profileId(), 8, new ProfileDocument(1, original.document().baseYaml(), List.of(group), preview.rules(), List.of(), List.of()));
+        assertThat(service.text(applied, NodeCatalog.empty(), Map.of(), 10L).text()).isEqualTo(input);
+    }
+
+    @Test void literalHashesInRegexAreNotTurnedIntoCommentsWhenReopening() {
+        var skeleton = draft(List.of());
+        var parsed = parser.parseValues(List.of("DOMAIN-REGEX,^foo[ #]bar$,DIRECT", "MATCH,REJECT"), ReferenceIndex.of(skeleton.document(), NodeCatalog.empty()));
+        var original = draft(parsed.rules());
+        var edited = service.preview(original, service.text(original, NodeCatalog.empty(), Map.of(), 10L).text(), NodeCatalog.empty(), Map.of());
+        assertThat(edited.applicable()).isTrue();
+        assertThat(edited.rules()).isEqualTo(original.document().rules());
+    }
+
     @Test void largeRuleListRoundTripsAndASingleEditKeepsOtherRuleIdentitiesAndOrder() throws Exception {
         String text = Files.readString(Path.of("../tests/fixtures/rules/large-2124.txt"));
         var initial = draft(List.of());

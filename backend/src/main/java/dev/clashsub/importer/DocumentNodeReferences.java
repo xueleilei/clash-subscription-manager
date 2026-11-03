@@ -10,7 +10,7 @@ public final class DocumentNodeReferences {
     public static ProfileDocument replace(ProfileDocument document, Map<UUID, UUID> ids) {
         var groups = document.groups().stream().map(group -> new GroupDefinition(group.id(), group.name(), group.type(),
                 group.members().stream().map(target -> replace(target, ids)).distinct().toList(), group.options())).toList();
-        var rules = document.rules().stream().map(rule -> new RuleDefinition(rule.id(), rule.expression(), replace(rule.target(), ids), rule.modifiers(), rule.rawText(), rule.issues())).toList();
+        var rules = document.rules().stream().map(rule -> new RuleDefinition(rule.id(), rule.expression(), replace(rule.target(), ids), rule.modifiers(), rule.rawText(), rule.issues(), rule.trivia())).toList();
         return new ProfileDocument(document.schemaVersion(), document.baseYaml(), groups, rules, document.providers(), document.importIssues());
     }
     public static Set<UUID> direct(ProfileDocument document) {

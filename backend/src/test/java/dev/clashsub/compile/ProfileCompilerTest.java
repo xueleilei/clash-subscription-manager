@@ -56,6 +56,28 @@ class ProfileCompilerTest {
         return Map.of(SOURCE, new SourceState(SOURCE, 1L, version, "机场甲"));
     }
 
+    @Test void compiledYamlKeepsRuleCommentsWithoutTurningThemIntoRules() {
+        var skeleton = document(List.of(), List.of(), List.of());
+        var parsed = new dev.clashsub.rule.RuleParser().parse("# === 局域网直连 ===\nDOMAIN-SUFFIX,local,DIRECT # 本地网络\n\n# === 分流规则 ===\nMATCH,REJECT\n# 文件末尾\n",
+                dev.clashsub.profile.ReferenceIndex.of(skeleton, NodeCatalog.empty()));
+        var result = compiler().compile(PROFILE, document(List.of(), parsed.rules(), List.of()), NodeCatalog.empty(), Map.of());
+        assertThat(result.report().errors()).isEmpty();
+        assertThat(result.compiled().yaml()).contains("# === 局域网直连 ===", "# 本地网络", "# === 分流规则 ===", "# 文件末尾");
+        assertThat(result.compiled().yaml()).containsPattern("\\n[ \\t]*\\n");
+        assertThat(YAML.load(result.compiled().yaml()).value().path("rules").size()).isEqualTo(2);
+        assertThat(YAML.load(result.compiled().yaml()).value().path("rules").path(0).asString()).isEqualTo("DOMAIN-SUFFIX,local,DIRECT");
+    }
+
+    @Test void unicodeLineSeparatorsCannotMakeAnAnnotatedRuleSpanMultipleYamlLines() {
+        var row = rule("DOMAIN-REGEX", "foo\u2028bar", TargetRef.direct())
+                .withTrivia(new dev.clashsub.rule.RuleTrivia(List.of("# 单行规则"), "", List.of()));
+        var result = compiler().compile(PROFILE, document(List.of(), List.of(row, rule("MATCH", "", TargetRef.reject())), List.of()), NodeCatalog.empty(), Map.of());
+        assertThat(result.report().valid()).isFalse(); assertThat(result.compiled()).isNull();
+        var target = rule("MATCH", "", TargetRef.group(GROUP)).withTrivia(row.trivia());
+        var named = compiler().compile(PROFILE, document(List.of(group(GROUP, "分隔\u2028组", "select", TargetRef.direct())), List.of(target), List.of()), NodeCatalog.empty(), Map.of());
+        assertThat(named.report().valid()).isFalse(); assertThat(named.compiled()).isNull();
+    }
+
     @Test void localNodesHaveReadableNamesInGroupsAndDirectRules() {
         var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A))),
                 List.of(rule("MATCH", "", TargetRef.node(A))), List.of());

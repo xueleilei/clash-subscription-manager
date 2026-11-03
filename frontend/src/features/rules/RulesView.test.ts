@@ -3,6 +3,7 @@ import { mount, DOMWrapper, flushPromises } from '@vue/test-utils'
 import { defineComponent, h, shallowRef } from 'vue'
 import { userEvent } from 'vitest/browser'
 import RulesView from './RulesView.vue'
+import { ruleText } from './ruleText'
 import { documentFixture, target } from '../../test/fixtures'
 import { button, mockApi, reply } from '../../test/http'
 import type { Diagnostic, ProfileDocument, RuleDefinition } from '../../types/domain'
@@ -14,6 +15,23 @@ function setup(doc = documentFixture(), mode: 'rules' | 'providers' = 'rules') {
  return current
 }
 async function set(label: string, value: string) { await new DOMWrapper(document.querySelector(`[aria-label="${label}"]`)!).setValue(value) }
+test('exported rule text includes section comments, inline comments and blank lines', () => {
+ const row={...rule('commented','local'),trivia:{leading:['# === 局域网直连 ===',''],inline:' # 本地网络',trailing:['# 尾注','']}}
+ expect(ruleText(row,documentFixture(),[])).toBe('# === 局域网直连 ===\n\nDOMAIN-SUFFIX,local,DIRECT # 本地网络\n# 尾注\n')
+})
+test('visual edits and moves keep comments, and deleting a rule retains its notes beside the next rule', async () => {
+ const trivia={leading:['# === 局域网直连 ==='],inline:' # 本地网络',trailing:['']}
+ const doc=documentFixture(); doc.rules=[{...rule('commented','local'),...{trivia}},rule('second','localhost'),...doc.rules]
+ const current=setup(doc)
+ button('编辑规则 commented').click(); await expect.poll(()=>document.querySelector('[aria-label="匹配内容"]')).not.toBeNull()
+ await set('匹配内容','internal'); button('应用规则编辑').click()
+ await expect.poll(()=>current.value.rules[0]!.expression.value).toBe('internal')
+ expect(current.value.rules[0]).toMatchObject({trivia})
+ button('下移规则 commented').click(); await expect.poll(()=>current.value.rules[1]!.id).toBe('commented')
+ expect(current.value.rules[1]).toMatchObject({trivia})
+ button('删除规则 commented').click(); await expect.poll(()=>current.value.rules.length).toBe(2)
+ expect(ruleText(current.value.rules[1]!,current.value,[])).toBe('# === 局域网直连 ===\n# 本地网络\n\nMATCH,REJECT')
+})
 test('visual rules edit stable targets, RULE-SET selects a provider and retained removed-node reasons are visible', async () => {
  const doc = documentFixture(); doc.providers.push({id:'pv1',name:'广告列表',type:'http',url:'https://rules.example.invalid/a.yaml',behavior:'domain',format:'yaml',interval:3600,options:{}})
  const current = setup(doc)

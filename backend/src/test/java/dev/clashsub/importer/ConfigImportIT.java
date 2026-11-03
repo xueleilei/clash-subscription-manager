@@ -14,7 +14,20 @@ import static org.assertj.core.api.Assertions.*;
 class ConfigImportIT extends RefreshTestSupport {
     @Autowired ConfigImportService imports;
     @Autowired RetentionService retention;
+    @Autowired dev.clashsub.rule.RuleTextService ruleText;
     @org.springframework.boot.test.web.server.LocalServerPort int port;
+    @Test void ruleCommentsSurviveFullConfigImportSaveAndCompilation() {
+        String raw = "mode: rule\nrules:\n  # === 局域网直连 ===\n  - DOMAIN-SUFFIX,local,DIRECT # 本地网络\n\n  # === 分流规则 ===\n  - MATCH,REJECT\n  # 文件末尾\n";
+        var preview = imports.preview(owner, raw);
+        assertThat(preview.report().errors()).isEmpty();
+        var draft = imports.confirm(owner, preview.id(), Map.of());
+        var stored = profiles.load(owner, draft.profileId());
+        String text = ruleText.text(stored, nodes.catalog(owner), Map.of(), 1L).text();
+        assertThat(text).isEqualTo("# === 局域网直连 ===\nDOMAIN-SUFFIX,local,DIRECT # 本地网络\n\n# === 分流规则 ===\nMATCH,REJECT\n# 文件末尾\n");
+        var prepared = publisher.prepare(draft.profileId(), stored.document(), snapshots.read(owner));
+        assertThat(prepared.valid()).isTrue();
+        assertThat(prepared.compiled().yaml()).contains("# === 局域网直连 ===", "# === 分流规则 ===", "# 文件末尾");
+    }
     @Test void fullSyntheticConfigPreservesTwentyTwoGroupsTwoThousandRulesProvidersAndChains() throws Exception {
         String raw = Files.readString(Path.of("../tests/fixtures/imports/complete-2124.yaml")); var preview = imports.preview(owner, raw);
         assertThat(preview.nodes()).hasSize(5); assertThat(preview.document().groups()).hasSize(22);

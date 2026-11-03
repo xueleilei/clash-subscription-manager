@@ -25,11 +25,22 @@ public class RuleImportService {
         if (incomingMatch > 1) { report = report.merge(error("MATCH_COUNT", "不能导入多个 MATCH")); }
         var candidate = new ArrayList<>(draft.document().rules().stream().filter(rule -> !match(rule)).toList());
         candidate.addAll(parsed.rules().stream().filter(rule -> !match(rule)).toList());
-        candidate.addAll(incomingMatch > 0 ? parsed.rules().stream().filter(this::match).toList() : draft.document().rules().stream().filter(this::match).toList());
+        candidate.addAll(incomingMatch > 0 ? parsed.rules().stream().filter(this::match).map(rule -> preserveFallbackNotes(draft.document().rules(), rule)).toList()
+                : draft.document().rules().stream().filter(this::match).toList());
         report = report.merge(new RuleValidator().validate(candidate));
         if (candidate.size() > 10_000) { report = report.merge(error("RULE_INPUT_LIMIT", "合并后最多保留 10000 条规则")); }
         return new RuleImportPreview(report.valid(), Long.toString(draft.version()), report.valid() ? candidate : draft.document().rules(), parsed.rules(), report);
     }
     private boolean match(RuleDefinition rule) { return rule.expression() != null && "MATCH".equals(rule.expression().type()); }
+    private RuleDefinition preserveFallbackNotes(List<RuleDefinition> existing, RuleDefinition incoming) {
+        var leading = new ArrayList<String>(); var trailing = new ArrayList<>(incoming.trivia().trailing());
+        existing.stream().filter(this::match).forEach(rule -> {
+            leading.addAll(rule.trivia().leading());
+            if (!rule.trivia().inline().isBlank()) { leading.add(rule.trivia().inline().stripLeading()); }
+            trailing.addAll(rule.trivia().trailing());
+        });
+        leading.addAll(incoming.trivia().leading());
+        return incoming.withTrivia(new RuleTrivia(leading, incoming.trivia().inline(), trailing));
+    }
     private ValidationReport error(String code, String message) { return ValidationReport.of(List.of(Diagnostic.error(code, "rules", message))); }
 }
