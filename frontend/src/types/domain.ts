@@ -19,6 +19,9 @@ export interface NodeSpec extends Pick<NodeSummary, 'id' | 'sourceId' | 'origina
 export interface LocalNodeCommand { expectedVersion?: Version; name: string; protocol: string; connection: JsonObject; dialerRef: TargetRef | null }
 export interface LocalNodeView { node: NodeSpec; version: Version; affectedProfiles: Id[]; publishedProfiles: Id[] }
 export interface LocalNodeResult { id: Id; version: Version; affectedProfiles: Id[] }
+export interface LocalNodeBatchPreview { ownerRevision: Version; nodes: LocalNodeCommand[] }
+export interface LocalNodeBatchCommand { text: string; ownerRevision: Version }
+export interface LocalNodeBatchResult { ids: Id[]; affectedProfiles: Id[] }
 export interface LocalNodeRemoval { id: Id; version: Version; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: Id[] }
 export interface Page<T> { items: T[]; total: number; page: number; size: number }
 export type InputFormat = 'AUTO' | 'CLASH_YAML' | 'URI_LIST' | 'BASE64'

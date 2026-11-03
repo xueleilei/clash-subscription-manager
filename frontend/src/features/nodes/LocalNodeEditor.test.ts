@@ -9,13 +9,15 @@ import { button, mockApi, reply } from '../../test/http'
 const local = { id: 'local-a', sourceId: null, originalName: '本地香港', protocol: 'vless', region: 'HK', snapshotVersion: '3' }
 const connection = { server: 'fixture.invalid', port: 443, uuid: '11111111-1111-4111-8111-111111111111', tls: true, network: 'ws', 'ws-opts': { path: '/original', headers: { Host: 'fixture.invalid' } }, 'ech-opts': { enable: true, config: 'fixture' }, smux: { enabled: true } }
 const writes: { path: string; method: string; body: Record<string, unknown> }[] = []
-function serve(options: { conflict?: boolean; invalid?: boolean; dependent?: boolean } = {}) {
+function serve(options: { conflict?: boolean; invalid?: boolean; dependent?: boolean; batch?: boolean } = {}) {
  mockApi((path, method, body) => {
   if (method !== 'GET') writes.push({ path, method, body })
   if (path === '/sources' || path === '/sources/proxy-options' || path === '/empty-decisions' || path.endsWith('/history')) return reply([])
   if (path === '/profiles') return reply([{ id: 'p1', name: '日常方案' }])
   if (path.startsWith('/nodes?')) return reply({ items: [local], total: 1, page: 1, size: 50 })
   if (path === '/local-nodes/parse') return reply({ name: '链接节点', protocol: 'vless', connection, dialerRef: null })
+  if (path === '/local-nodes/batch/preview') return reply({ ownerRevision: '8', nodes: (options.batch ? ['One', 'Two'] : ['链接节点']).map(name => ({ name, protocol: 'vless', connection, dialerRef: null })) })
+  if (path === '/local-nodes/batch') return options.conflict ? reply(null, 409) : reply({ids: ['new-a', 'new-b'], affectedProfiles: []})
   if (path === '/local-nodes/local-a' && method === 'GET') return reply({ node: { ...local, connection, dialerRef: null }, version: '3', affectedProfiles: ['p1'], publishedProfiles: ['p1'] })
   if (path === '/local-nodes/local-a/removal') return reply({ id: local.id, version: '3', ownerRevision: '8', affectedProfiles: ['p1'], publishedProfiles: ['p1'], dependentNodes: options.dependent ? ['another-node'] : [] })
   if (path.startsWith('/local-nodes') && method !== 'GET') return options.conflict ? reply(null, 409) : options.invalid ? reply({ errors: [{ severity: 'ERROR', code: 'UNKNOWN_PROXY_FIELD', path: 'node.unsupported', message: '不支持此连接字段' }], warnings: [] }, 422) : reply({ id: local.id, version: '4', affectedProfiles: ['p1'] })
@@ -49,10 +51,33 @@ test('editing preserves advanced fields and stable identity while changing commo
 test('a single link is parsed into an editable form before the user saves', async () => {
  serve(); await openManual(); button('添加节点').click()
  await expect.poll(() => button('分享链接 / YAML')).toBeTruthy(); button('分享链接 / YAML').click()
- await field('node-input', 'vless://fixture@fixture.invalid:443#链接节点'); button('解析为表单').click()
+ await field('node-input', 'vless://fixture@fixture.invalid:443#链接节点'); button('解析并预览').click()
  await expect.poll(() => document.querySelector<HTMLInputElement>('[name="node-name"]')?.value).toBe('链接节点')
- expect(writes.map(w => w.path)).toEqual(['/local-nodes/parse'])
+ expect(writes.map(w => w.path)).toEqual(['/local-nodes/batch/preview'])
  button('保存节点').click(); await expect.poll(() => writes.some(w => w.path === '/local-nodes')).toBe(true)
+})
+test('batch preview creates all nodes through one request only after confirmation', async () => {
+ serve({batch: true}); await openManual(); button('添加节点').click()
+ await expect.poll(() => button('分享链接 / YAML')).toBeTruthy(); button('分享链接 / YAML').click()
+ const text = 'vless://fixture@fixture.invalid:443#One\nvless://fixture@fixture.invalid:444#Two'
+ await field('node-input', text); button('解析并预览').click()
+ await expect.poll(() => button('确认导入 2 个节点')).toBeTruthy()
+ expect(writes.map(write => write.path)).toEqual(['/local-nodes/batch/preview'])
+ button('确认导入 2 个节点').click()
+ await expect.poll(() => document.body.textContent).toContain('已导入 2 个手动节点')
+ expect(writes.filter(write => write.path === '/local-nodes/batch')).toEqual([{path: '/local-nodes/batch', method: 'POST', body: {text, ownerRevision: '8'}}])
+ expect(document.querySelector('[name="node-input"]')).toBeNull()
+})
+test('a failed batch import retains source text and requires a fresh preview', async () => {
+ serve({batch: true, conflict: true}); await openManual(); button('添加节点').click()
+ await expect.poll(() => button('分享链接 / YAML')).toBeTruthy(); button('分享链接 / YAML').click()
+ const text = 'vless://fixture@fixture.invalid:443#One\nvless://fixture@fixture.invalid:444#Two'
+ await field('node-input', text); button('解析并预览').click()
+ await expect.poll(() => button('确认导入 2 个节点')).toBeTruthy(); button('确认导入 2 个节点').click()
+ await expect.poll(() => document.body.textContent).toContain('数据已变更')
+ expect(document.querySelector<HTMLTextAreaElement>('[name="node-input"]')!.value).toBe(text)
+ await expect.poll(() => document.body.textContent).not.toContain('确认导入 2 个节点')
+ expect(button('解析并预览').disabled).toBe(false)
 })
 test('conflicts retain the edited name and credentials without overwriting the stored version', async () => {
  serve({ conflict: true }); await openManual(); button('编辑 本地香港').click()

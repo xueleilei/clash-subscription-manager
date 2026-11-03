@@ -7,8 +7,8 @@ import { ApiError, errorMessage, request } from '../../api/client'
 import { readNodeSummaries } from '../../api/nodes'
 import { useProfiles } from '../../layout/useProfiles'
 import { onSessionReset } from '../auth/useSession'
-import type { Diagnostic, LocalNodeCommand, LocalNodeRemoval, LocalNodeResult, LocalNodeView, NodeSummary, ValidationReport } from '../../types/domain'
-const emit = defineEmits<{ changed: [result: LocalNodeResult] }>()
+import type { Diagnostic, LocalNodeBatchCommand, LocalNodeBatchResult, LocalNodeCommand, LocalNodeRemoval, LocalNodeResult, LocalNodeView, NodeSummary, ValidationReport } from '../../types/domain'
+const emit = defineEmits<{ changed: [result: LocalNodeResult | LocalNodeBatchResult] }>()
 type Selection = { kind: 'create' | 'edit' | 'remove'; node: NodeSummary | null }
 const selection = shallowRef<Selection | null>(null), detail = shallowRef<LocalNodeView | null>(null), removal = shallowRef<LocalNodeRemoval | null>(null)
 const nodes = shallowRef<NodeSummary[]>([]), loading = shallowRef(false), saving = shallowRef(false), error = shallowRef(''), diagnostics = shallowRef<Diagnostic[]>([]), notice = shallowRef('')
@@ -42,10 +42,11 @@ async function write(method: 'POST' | 'PUT' | 'DELETE', path: string, body: unkn
  if (saving.value) return
  const current = sequence, signal = operation!.signal; saving.value = true; error.value = ''; diagnostics.value = []
  try {
-  const result = await request<LocalNodeResult>(path, { method, body, signal })
+  const result = await request<LocalNodeResult | LocalNodeBatchResult>(path, { method, body, signal })
   if (current !== sequence || disposed) return
   const affected = result.affectedProfiles.map(id => names.value.get(id) ?? id).join('、')
   clear(); notice.value = affected ? `已更新相关方案草稿：${affected}。请检查后手动发布，现有订阅保持已发布版本。` : '节点池已更新。将节点加入方案代理组后，检查并手动发布。'
+  if ('ids' in result) notice.value = `已导入 ${result.ids.length} 个手动节点。将节点加入方案代理组后，检查并手动发布。`
   emit('changed', result)
   try { await profiles.reload() } catch { if (!disposed) notice.value += ' 方案状态读取失败，请重新读取。' }
  } catch (cause) { if (current === sequence && !disposed) showError(cause) }
@@ -54,6 +55,10 @@ async function write(method: 'POST' | 'PUT' | 'DELETE', path: string, body: unkn
 function save(command: LocalNodeCommand) {
  const selected = selection.value; if (!selected || selected.kind === 'remove') return
  return write(selected.node ? 'PUT' : 'POST', selected.node ? `/local-nodes/${selected.node.id}` : '/local-nodes', command)
+}
+function importNodes(command: LocalNodeBatchCommand) {
+ if (selection.value?.kind !== 'create') return
+ return write('POST', '/local-nodes/batch', command)
 }
 function removeConfirmed() {
  const preview = removal.value
@@ -75,7 +80,7 @@ defineExpose({ create: () => open({ kind: 'create', node: null }), edit: (node: 
     <p v-if="removal.dependentNodes.length" class="warning">以下节点仍将它用作链式代理，请先解除依赖：{{ removal.dependentNodes.map(id => nodeNames.get(id) ?? id).join('、') }}</p>
     <div class="dialog-actions"><ElButton :disabled="saving" @click="close">取消</ElButton><ElButton v-if="error" :disabled="saving" @click="open(selection)">重新检查影响</ElButton><ElButton type="danger" :loading="saving" :disabled="!!removal.dependentNodes.length" @click="removeConfirmed">确认删除节点</ElButton></div>
    </template>
-   <LocalNodeEditor v-else-if="!loading && selection.kind !== 'remove' && (selection.kind === 'create' || detail)" :initial="detail" :nodes="nodes" :busy="saving" @submit="save" @cancel="close" />
+   <LocalNodeEditor v-else-if="!loading && selection.kind !== 'remove' && (selection.kind === 'create' || detail)" :initial="detail" :nodes="nodes" :busy="saving" @submit="save" @import="importNodes" @reset-errors="error='';diagnostics=[]" @cancel="close" />
    <div v-else-if="!loading && error" class="dialog-actions"><ElButton @click="close">取消</ElButton><ElButton @click="open(selection)">重新读取节点</ElButton></div>
   </template>
  </ElDialog>

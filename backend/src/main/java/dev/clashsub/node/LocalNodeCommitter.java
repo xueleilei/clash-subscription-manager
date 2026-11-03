@@ -5,6 +5,7 @@ import dev.clashsub.common.OwnerSnapshot;
 import dev.clashsub.profile.ProfileDocument;
 import dev.clashsub.profile.ProfileRepository;
 import java.util.Map;
+import java.util.List;
 import java.util.TreeMap;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,11 @@ public class LocalNodeCommitter {
         revisions.compareAndIncrement(before.ownerId(), before.dataRevision());
         nodes.deleteLocal(before.ownerId(), id, expected); applyDrafts(before, drafts);
         return new LocalNodeResult(id, Long.toString(expected + 1), drafts.keySet().stream().sorted().toList());
+    }
+    @Transactional public LocalNodeBatchResult saveBatch(OwnerSnapshot before, List<NodeSpec> batch) {
+        revisions.compareAndIncrement(before.ownerId(), before.dataRevision());
+        for (var node : batch) { nodes.insertLocal(before.ownerId(), node); }
+        return new LocalNodeBatchResult(batch.stream().map(NodeSpec::id).toList(), List.of());
     }
     private void applyDrafts(OwnerSnapshot before, Map<UUID, ProfileDocument> drafts) {
         for (var entry : new TreeMap<>(drafts).entrySet()) {

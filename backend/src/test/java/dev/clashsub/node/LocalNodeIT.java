@@ -24,6 +24,7 @@ class LocalNodeIT extends RefreshTestSupport {
     @LocalServerPort int port;
     @Autowired PasswordEncoder passwords;
     @Autowired LocalNodeService localNodes;
+    @Autowired LocalNodeCommitter localCommitter;
     private HttpClient client;
 
     @BeforeEach void authenticate() throws Exception {
@@ -155,6 +156,66 @@ class LocalNodeIT extends RefreshTestSupport {
         assertThat(send("POST", "/local-nodes/parse", json.createObjectNode().put("text", yaml("One", "Two"))).statusCode()).isEqualTo(422);
         assertThat(send("POST", "/local-nodes/parse", json.createObjectNode().put("text", "proxies: []")).statusCode()).isEqualTo(422);
         org.mockito.Mockito.verify(fetcher, org.mockito.Mockito.never()).fetch(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test void batchPreviewAndAtomicImportSupportCopiedFlowObjectsAndPreservePublishedProfiles() throws Exception {
+        UUID upstream = source("Fixture upstream", yaml("Upstream fixture"));
+        UUID profile = profile("Fixture published", List.of(node(upstream, "Upstream fixture").id()), null);
+        String publishedBefore = artifact(profile);
+        var before = snapshots.read(owner);
+        String text = yaml("Batch one", "Batch two").replace("proxies:\n", "").replace("- {", "{");
+        var previewResponse = send("POST", "/local-nodes/batch/preview", json.createObjectNode().put("text", text));
+        assertThat(previewResponse.headers().firstValue("cache-control")).hasValue("no-store");
+        var preview = ok(previewResponse);
+        assertThat(preview.path("nodes").size()).isEqualTo(2);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        var command = json.createObjectNode().put("text", text).put("ownerRevision", preview.path("ownerRevision").asString());
+        var result = ok(send("POST", "/local-nodes/batch", command));
+        assertThat(result.path("ids").size()).isEqualTo(2);
+        assertThat(ok(send("GET", "/nodes?localOnly=true", null)).path("total").asInt()).isEqualTo(2);
+        assertThat(artifact(profile)).isEqualTo(publishedBefore);
+        assertThat(snapshots.read(owner).profiles()).isEqualTo(before.profiles());
+        assertThat(send("POST", "/local-nodes/batch", command).statusCode()).isEqualTo(409);
+        assertThat(ok(send("GET", "/nodes?localOnly=true", null)).path("total").asInt()).isEqualTo(2);
+    }
+
+    @Test void batchInvalidNodeAndOutdatedPreviewNeverPartiallyImport() throws Exception {
+        String invalid = yaml("Valid", "Invalid").replace("name: 'Invalid', type: ss", "name: 'Invalid', type: unsupported");
+        long revision = snapshots.read(owner).dataRevision();
+        assertThat(send("POST", "/local-nodes/batch/preview", json.createObjectNode().put("text", invalid)).statusCode()).isEqualTo(422);
+        assertThat(send("POST", "/local-nodes/batch", json.createObjectNode().put("text", invalid).put("ownerRevision", revision)).statusCode()).isEqualTo(422);
+        assertThat(snapshots.read(owner).nodes().nodes()).isEmpty();
+        assertThat(snapshots.read(owner).dataRevision()).isEqualTo(revision);
+        var preview = ok(send("POST", "/local-nodes/batch/preview", json.createObjectNode().put("text", yaml("One", "Two"))));
+        ok(send("POST", "/local-nodes", input("Added after preview", "fixture-only")));
+        assertThat(send("POST", "/local-nodes/batch", json.createObjectNode().put("text", yaml("One", "Two")).put("ownerRevision", preview.path("ownerRevision").asString())).statusCode()).isEqualTo(409);
+        assertThat(ok(send("GET", "/nodes?localOnly=true", null)).path("total").asInt()).isEqualTo(1);
+    }
+
+    @Test void batchResolvesInternalChainsAndRejectsCyclesAndKernelFailures() throws Exception {
+        String text = yaml("Gateway", "Leaf").replace("name: 'Leaf',", "name: 'Leaf', dialer-proxy: Gateway,");
+        var preview = ok(send("POST", "/local-nodes/batch/preview", json.createObjectNode().put("text", text)));
+        ok(send("POST", "/local-nodes/batch", json.createObjectNode().put("text", text).put("ownerRevision", preview.path("ownerRevision").asString())));
+        var catalog = nodes.catalog(owner);
+        var gateway = catalog.nodes().values().stream().filter(node -> node.originalName().equals("Gateway")).findFirst().orElseThrow();
+        var leaf = catalog.nodes().values().stream().filter(node -> node.originalName().equals("Leaf")).findFirst().orElseThrow();
+        assertThat(leaf.dialerRef()).isEqualTo(TargetRef.node(gateway.id()));
+        String cycle = text.replace("name: 'Gateway',", "name: 'Gateway', dialer-proxy: Leaf,");
+        var before = snapshots.read(owner);
+        assertThat(send("POST", "/local-nodes/batch/preview", json.createObjectNode().put("text", cycle)).statusCode()).isEqualTo(422);
+        String invalidCore = "proxies:\n- {name: Core-invalid, type: hysteria2, server: fixture.invalid, ports: 443-444, hop-interval: invalid-interval, password: fixture-only}\n";
+        assertThat(send("POST", "/local-nodes/batch", json.createObjectNode().put("text", invalidCore).put("ownerRevision", before.dataRevision())).statusCode()).isEqualTo(422);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        org.mockito.Mockito.verify(fetcher, org.mockito.Mockito.never()).fetch(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test void batchTransactionRollsBackEarlierInsertAndRevisionOnDatabaseFailure() {
+        var before = snapshots.read(owner);
+        var connection = (ObjectNode) input("Rollback fixture", "fixture-only").path("connection");
+        var repeated = new NodeSpec(UUID.randomUUID(), null, "Rollback fixture", "ss", connection, null);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> localCommitter.saveBatch(before, List.of(repeated, repeated)))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
     }
 
     @Test void anotherOwnersRealLocalNodeCannotBeReadChangedDeletedOrUsedAsDialer() throws Exception {

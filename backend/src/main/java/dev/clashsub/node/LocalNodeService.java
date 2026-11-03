@@ -47,6 +47,43 @@ public class LocalNodeService {
         }
         return new LocalNodeCommand(null, parsed.originalName(), parsed.protocol(), parsed.connection(), dialer);
     }
+    @Transactional(propagation = Propagation.NEVER)
+    public LocalNodeBatchPreview previewBatch(UUID owner, String text) {
+        var before = snapshots.read(owner);
+        var batch = prepareBatch(before, text);
+        return new LocalNodeBatchPreview(Long.toString(before.dataRevision()), batch.stream()
+                .map(node -> new LocalNodeCommand(null, node.originalName(), node.protocol(), node.connection(), node.dialerRef())).toList());
+    }
+    @Transactional(propagation = Propagation.NEVER)
+    public LocalNodeBatchResult saveBatch(UUID owner, String text, Long ownerRevision) {
+        var before = snapshots.read(owner);
+        if (ownerRevision == null || ownerRevision != before.dataRevision()) { throw ApiException.conflict(); }
+        return committer.saveBatch(before, prepareBatch(before, text));
+    }
+    private List<NodeSpec> prepareBatch(OwnerSnapshot before, String text) {
+        var parsed = parser.parseAll(text);
+        var ids = new LinkedHashMap<String, UUID>();
+        for (var node : parsed) { ids.put(node.originalName(), UUID.randomUUID()); }
+        var batch = new ArrayList<NodeSpec>();
+        for (int index = 0; index < parsed.size(); index++) {
+            var node = parsed.get(index); String name = node.originalDialerName(); TargetRef dialer = null;
+            if (name != null) {
+                if (name.equals("DIRECT")) { dialer = TargetRef.direct(); }
+                else if (name.equals("REJECT")) { dialer = TargetRef.reject(); }
+                else if (ids.containsKey(name)) { dialer = TargetRef.node(ids.get(name)); }
+                else {
+                    var matches = before.nodes().nodes().values().stream().filter(existing -> existing.originalName().equals(name)).toList();
+                    if (matches.size() != 1) { throw invalid("nodes[" + index + "].dialerRef", "链式代理名称未唯一匹配，请修正节点名称或链式代理引用"); }
+                    dialer = TargetRef.node(matches.getFirst().id());
+                }
+            }
+            batch.add(new NodeSpec(ids.get(node.originalName()), null, node.originalName(), node.protocol(), node.connection(), dialer));
+        }
+        var catalog = new LinkedHashMap<>(before.nodes().nodes()); batch.forEach(node -> catalog.put(node.id(), node));
+        var candidate = new OwnerSnapshot(before.ownerId(), before.dataRevision(), before.sources(), new NodeCatalog(catalog), before.profiles());
+        validateNodes(batch.stream().map(NodeSpec::id).toList(), candidate);
+        return List.copyOf(batch);
+    }
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LocalNodeView view(UUID owner, UUID id) {
         var row = nodes.requireLocal(owner, id); var snapshot = snapshots.read(owner);
@@ -81,7 +118,7 @@ public class LocalNodeService {
         var node = new NodeSpec(nodeId, null, input.name(), input.protocol(), connection, dialer);
         var catalog = new LinkedHashMap<>(before.nodes().nodes()); catalog.put(nodeId, node);
         var candidate = new OwnerSnapshot(owner, before.dataRevision(), before.sources(), new NodeCatalog(catalog), before.profiles());
-        validateNode(nodeId, candidate);
+        validateNodes(List.of(nodeId), candidate);
         var drafts = new LinkedHashMap<UUID, ProfileDocument>();
         if (id != null) { affected(before, id).forEach(profile -> drafts.put(profile, before.profiles().get(profile).draft().document())); }
         return committer.save(before, node, input.expectedVersion(), drafts);
@@ -98,11 +135,11 @@ public class LocalNodeService {
         }
         return committer.delete(before, id, expectedVersion, drafts);
     }
-    private void validateNode(UUID id, OwnerSnapshot snapshot) {
+    private void validateNodes(List<UUID> ids, OwnerSnapshot snapshot) {
         UUID groupId = UUID.randomUUID();
-        var group = new GroupDefinition(groupId, "手动节点校验", "select", List.of(TargetRef.node(id)), JsonNodeFactory.instance.objectNode());
+        var group = new GroupDefinition(groupId, "手动节点校验", "select", ids.stream().map(TargetRef::node).toList(), JsonNodeFactory.instance.objectNode());
         var rule = new RuleDefinition(UUID.randomUUID(), new RuleExpression("MATCH", "", null), TargetRef.group(groupId), List.of(), "", List.of());
-        var prepared = publisher.prepare(id, new ProfileDocument(1, "mode: rule\n", List.of(group), List.of(rule), List.of(), List.of()), snapshot);
+        var prepared = publisher.prepare(ids.getFirst(), new ProfileDocument(1, "mode: rule\n", List.of(group), List.of(rule), List.of(), List.of()), snapshot);
         if (!prepared.valid()) { throw new ApiValidationException(prepared.validation()); }
     }
     private List<UUID> affected(OwnerSnapshot snapshot, UUID id) {
