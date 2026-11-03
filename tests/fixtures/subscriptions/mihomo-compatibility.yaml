@@ -1,0 +1,39 @@
+proxies:
+  - name: VLESS compatibility fixture
+    type: vless
+    server: fixture.example.invalid
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000001
+    tls: true
+    network: ws
+    alterId: 0
+    cipher: auto
+    ech-opts:
+      enable: true
+      query-server-name: ech.example.invalid
+    smux:
+      enabled: true
+      protocol: h2mux
+      max-connections: 4
+      padding: true
+      brutal-opts:
+        enabled: false
+        up: 100
+        down: 100
+  - name: Hysteria2 numeric fixture
+    type: hysteria2
+    server: fixture.example.invalid
+    port: 443
+    ports: 443,8443
+    password: fixture-password
+    hop-interval: 30
+    up: 600
+    down: 600
+  - name: TUIC compatibility fixture
+    type: tuic
+    server: fixture.example.invalid
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000002
+    password: fixture-password
+    udp: true
+    congestion-controller: bbr

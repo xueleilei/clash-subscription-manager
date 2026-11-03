@@ -82,5 +82,38 @@ class ClashYamlParserTest {
         assertThat(parse(node.formatted("10mbps")).committable()).isFalse();
     }
 
+    @Test void preservesMihomoCompatibilityFieldsWithoutDroppingConnectionOptions() throws Exception {
+        String text = Files.readString(Path.of("../tests/fixtures/subscriptions/mihomo-compatibility.yaml"));
+        var result = parse(text);
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.nodes()).hasSize(3);
+        var originals = new SafeYaml().load(text).value().path("proxies");
+        for (int index = 0; index < result.nodes().size(); index++) {
+            var expected = ((tools.jackson.databind.node.ObjectNode) originals.path(index)).deepCopy();
+            expected.remove(java.util.List.of("name", "type"));
+            assertThat(result.nodes().get(index).connection()).isEqualTo(expected);
+        }
+    }
+
+    @Test void compatibilityFieldsStillRejectUnsupportedValuesAndUnknownNestedOptions() throws Exception {
+        String text = Files.readString(Path.of("../tests/fixtures/subscriptions/mihomo-compatibility.yaml"));
+        for (String invalid : java.util.List.of(
+                text.replace("alterId: 0", "alterId: 1"),
+                text.replace("cipher: auto", "cipher: aes-128-gcm"),
+                text.replace("udp: true", "udp: false"),
+                text.replace("enable: true", "enable: 'yes'"),
+                text.replace("query-server-name:", "unknown-option:"),
+                text.replace("max-connections: 4", "unknown-option: 4"),
+                text.replace("up: 100", "unknown-option: 100"),
+                text.replace("up: 600", "up: -1"),
+                text.replace("up: 600", "up: 1.5"),
+                text.replace("up: 600", "up: 99999999999999999"),
+                text.replace("hop-interval: 30", "hop-interval: false"))) {
+            var result = parse(invalid);
+            assertThat(result.committable()).isFalse();
+            assertThat(result.nodes()).isEmpty();
+        }
+    }
+
     private ParseResult parse(String text) { return parser.parse(text.getBytes(StandardCharsets.UTF_8), InputFormat.AUTO); }
 }

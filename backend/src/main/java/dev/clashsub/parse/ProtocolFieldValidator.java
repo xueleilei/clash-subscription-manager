@@ -17,23 +17,23 @@ import tools.jackson.databind.node.ObjectNode;
 
 @Component
 public class ProtocolFieldValidator {
-    private enum Kind { STRING, BOOLEAN, INTEGER, STRINGS, STRING_MAP, STRINGS_MAP, OBJECT }
+    private enum Kind { STRING, BOOLEAN, INTEGER, STRING_OR_INTEGER, STRINGS, STRING_MAP, STRINGS_MAP, OBJECT }
     private static final Map<String, Kind> COMMON = schema(
-            "s:name,type,server,interface-name,ip-version,dialer-proxy", "i:port,routing-mark", "b:tfo,mptcp");
+            "s:name,type,server,interface-name,ip-version,dialer-proxy", "i:port,routing-mark", "b:tfo,mptcp", "o:smux");
     private static final Map<String, Map<String, Kind>> PROTOCOLS = Map.of(
             "ss", schema("s:cipher,password,plugin,client-fingerprint", "b:udp,udp-over-tcp", "i:udp-over-tcp-version", "o:plugin-opts"),
             "ssr", schema("s:cipher,password,obfs,obfs-param,protocol,protocol-param", "b:udp"),
             "vmess", schema("s:uuid,cipher,network,packet-encoding,servername,fingerprint,client-fingerprint,name-cert-verify",
                     "i:alterId", "b:udp,tls,skip-cert-verify,packet-addr,xudp,global-padding,authenticated-length",
-                    "l:alpn", "o:ws-opts,http-opts,h2-opts,grpc-opts,reality-opts"),
-            "vless", schema("s:uuid,flow,encryption,network,packet-encoding,servername,fingerprint,client-fingerprint,name-cert-verify",
-                    "b:udp,tls,skip-cert-verify,packet-addr,xudp", "l:alpn", "o:ws-opts,http-opts,h2-opts,grpc-opts,reality-opts"),
+                    "l:alpn", "o:ws-opts,http-opts,h2-opts,grpc-opts,reality-opts,ech-opts"),
+            "vless", schema("s:uuid,flow,encryption,network,packet-encoding,servername,fingerprint,client-fingerprint,name-cert-verify,cipher",
+                    "i:alterId", "b:udp,tls,skip-cert-verify,packet-addr,xudp", "l:alpn", "o:ws-opts,http-opts,h2-opts,grpc-opts,reality-opts,ech-opts"),
             "trojan", schema("s:password,network,sni,fingerprint,client-fingerprint,name-cert-verify",
-                    "b:udp,skip-cert-verify", "l:alpn", "o:ws-opts,grpc-opts,reality-opts,ss-opts"),
-            "hysteria2", schema("s:password,ports,hop-interval,up,down,obfs,obfs-password,sni,fingerprint,name-cert-verify,bbr-profile",
-                    "b:skip-cert-verify", "l:alpn", "i:obfs-min-packet-size,obfs-max-packet-size,cwnd,udp-mtu,handshake-timeout,initial-stream-receive-window,max-stream-receive-window,initial-connection-receive-window,max-connection-receive-window"),
+                    "b:udp,skip-cert-verify", "l:alpn", "o:ws-opts,grpc-opts,reality-opts,ss-opts,ech-opts"),
+            "hysteria2", schema("s:password,ports,obfs,obfs-password,sni,fingerprint,name-cert-verify,bbr-profile", "n:hop-interval,up,down",
+                    "b:skip-cert-verify", "l:alpn", "o:ech-opts", "i:obfs-min-packet-size,obfs-max-packet-size,cwnd,udp-mtu,handshake-timeout,initial-stream-receive-window,max-stream-receive-window,initial-connection-receive-window,max-connection-receive-window"),
             "tuic", schema("s:uuid,password,token,ip,udp-relay-mode,congestion-controller,bbr-profile,sni,fingerprint,name-cert-verify",
-                    "b:reduce-rtt,disable-sni,fast-open,skip-cert-verify,disable-mtu-discovery,udp-over-stream", "l:alpn",
+                    "b:reduce-rtt,disable-sni,fast-open,skip-cert-verify,disable-mtu-discovery,udp-over-stream,udp", "l:alpn", "o:ech-opts",
                     "i:heartbeat-interval,request-timeout,max-udp-relay-packet-size,max-open-streams,cwnd,recv-window-conn,recv-window,max-datagram-frame-size,udp-over-stream-version"),
             "http", schema("s:username,password,sni,fingerprint,name-cert-verify", "b:tls,skip-cert-verify", "m:headers"),
             "socks5", schema("s:username,password,fingerprint,name-cert-verify", "b:tls,udp,skip-cert-verify"));
@@ -43,6 +43,8 @@ public class ProtocolFieldValidator {
             "http-opts", schema("s:method", "l:path", "a:headers"),
             "h2-opts", schema("s:path", "l:host"),
             "reality-opts", schema("s:public-key,short-id"),
+            "ech-opts", schema("b:enable", "s:config,query-server-name"),
+            "smux", schema("b:enabled,padding,statistic,only-tcp", "s:protocol", "i:max-connections,min-streams,max-streams", "o:brutal-opts"),
             "ss-opts", schema("b:enabled", "s:method,password"));
     private static final Set<String> SS_CIPHERS = Set.of("aes-128-gcm", "aes-256-gcm", "chacha20-ietf-poly1305", "xchacha20-ietf-poly1305",
             "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305",
@@ -68,6 +70,8 @@ public class ProtocolFieldValidator {
         if (Set.of("ss", "ssr", "trojan", "hysteria2").contains(protocol)) { required(node, "password", path, errors); }
         if (Set.of("vmess", "vless").contains(protocol)) { uuid(node, path, errors); }
         if (protocol.equals("tuic")) {
+            // The pinned core always enables TUIC UDP; accept only a redundant true flag from converters.
+            if (node.has("udp") && !node.path("udp").asBoolean(false)) { bad(errors, path + ".udp", "TUIC 不支持通过 udp: false 关闭 UDP"); }
             if (node.has("token")) {
                 required(node, "token", path, errors);
                 if (node.has("uuid") || node.has("password")) { bad(errors, path, "TUIC token 与 UUID/password 不能同时设置"); }
@@ -92,6 +96,11 @@ public class ProtocolFieldValidator {
         if (protocol.equals("vmess")) {
             enumValue(node, "cipher", Set.of("auto", "none", "zero", "aes-128-gcm", "chacha20-poly1305"), path, errors, true);
         }
+        if (protocol.equals("vless")) {
+            // Some converters attach VMess defaults to VLESS. Preserve only these inert defaults.
+            if (node.has("alterId") && node.path("alterId").asLong(-1) != 0) { bad(errors, path + ".alterId", "VLESS 仅兼容转换器附带的 alterId: 0"); }
+            enumValue(node, "cipher", Set.of("auto"), path, errors, false);
+        }
         enumValue(node, "ip-version", Set.of("dual", "ipv4", "ipv6", "ipv4-prefer", "ipv6-prefer"), path, errors, false);
         enumValue(node, "network", protocol.equals("trojan") ? Set.of("tcp", "ws", "grpc") : Set.of("tcp", "ws", "grpc", "http", "h2"), path, errors, false);
         enumValue(node, "packet-encoding", Set.of("xudp", "packetaddr"), path, errors, false);
@@ -103,14 +112,17 @@ public class ProtocolFieldValidator {
         if (protocol.equals("hysteria2")) {
             enumValue(node, "obfs", Set.of("salamander", ""), path, errors, false);
             if (node.path("obfs").asString("").equals("salamander")) { required(node, "obfs-password", path, errors); }
-            for (String key : List.of("up", "down")) {
-                if (node.has(key) && !validBandwidth(node.path(key).asString(""))) { bad(errors, path + "." + key, "带宽必须是非负整数，可附 Mbps、Kbps、Gbps、Tbps 或 Bps 单位"); }
-            }
+            checkBandwidth(node, path, errors);
         }
         enumValue(node, "congestion-controller", Set.of("cubic", "new_reno", "bbr"), path, errors, false);
         enumValue(node, "udp-relay-mode", Set.of("native", "quic"), path, errors, false);
         for (var nested : NESTED.entrySet()) {
             if (node.has(nested.getKey())) { checkObject(node.path(nested.getKey()), nested.getValue(), path + "." + nested.getKey(), errors); }
+        }
+        if (node.path("smux").has("brutal-opts")) {
+            var brutal = node.path("smux").path("brutal-opts");
+            checkObject(brutal, schema("b:enabled", "n:up,down"), path + ".smux.brutal-opts", errors);
+            checkBandwidth(brutal, path + ".smux.brutal-opts", errors);
         }
         if (node.has("reality-opts")) {
             var reality = node.path("reality-opts");
@@ -147,6 +159,7 @@ public class ProtocolFieldValidator {
             case STRING -> value.isString();
             case BOOLEAN -> value.isBoolean();
             case INTEGER -> value.isIntegralNumber() && value.canConvertToLong() && value.asLong() >= 0;
+            case STRING_OR_INTEGER -> value.isString() || (value.isIntegralNumber() && value.canConvertToLong() && value.asLong() >= 0);
             case STRINGS -> value.isArray() && all(value, JsonNode::isString);
             case STRING_MAP -> value.isObject() && all(value, JsonNode::isString);
             case STRINGS_MAP -> value.isObject() && all(value, element -> element.isArray() && all(element, JsonNode::isString));
@@ -177,6 +190,13 @@ public class ProtocolFieldValidator {
         } catch (NumberFormatException exception) { return false; }
     }
     /** Match pinned Mihomo StringToBps, but reject its invalid/overflow-to-zero fallback. */
+    private void checkBandwidth(JsonNode node, String path, List<Diagnostic> errors) {
+        for (String key : List.of("up", "down")) {
+            var value = node.path(key);
+            String text = value.isIntegralNumber() ? value.asBigInteger().toString() : value.asString("");
+            if (node.has(key) && !validBandwidth(text)) { bad(errors, path + "." + key, "带宽必须是非负整数，可附 Mbps、Kbps、Gbps、Tbps 或 Bps 单位"); }
+        }
+    }
     private boolean validBandwidth(String value) {
         if (value.isEmpty()) { return true; }
         String digits; int power;
@@ -197,7 +217,7 @@ public class ProtocolFieldValidator {
         var result = new HashMap<String, Kind>();
         for (String group : groups) {
             Kind kind = switch (group.charAt(0)) {
-                case 's' -> Kind.STRING; case 'b' -> Kind.BOOLEAN; case 'i' -> Kind.INTEGER; case 'l' -> Kind.STRINGS;
+                case 's' -> Kind.STRING; case 'b' -> Kind.BOOLEAN; case 'i' -> Kind.INTEGER; case 'n' -> Kind.STRING_OR_INTEGER; case 'l' -> Kind.STRINGS;
                 case 'm' -> Kind.STRING_MAP; case 'a' -> Kind.STRINGS_MAP; case 'o' -> Kind.OBJECT; default -> throw new IllegalArgumentException();
             };
             for (String name : group.substring(2).split(",")) { result.put(name, kind); }

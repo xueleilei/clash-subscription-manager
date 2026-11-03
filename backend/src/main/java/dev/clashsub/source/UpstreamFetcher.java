@@ -87,8 +87,8 @@ public class UpstreamFetcher {
         String userAgent = source.userAgent().isBlank() ? DEFAULT_UA : source.userAgent();
         for (int hop = 0; hop <= limits.maxRedirects(); hop++) {
             final String host = unbracket(current.getHost());
-            final InetAddress[] pinned = dns.resolveAndCheck(host);
             final URI proxy = source.outboundProxy().isEmpty() ? null : URI.create(trustedProxies.get(source.outboundProxy()));
+            final InetAddress[] pinned = dns.resolveAndCheck(host, proxy != null);
             var resolver = new DnsResolver() {
                 @Override public InetAddress[] resolve(String name) throws UnknownHostException {
                     if (unbracket(name).equalsIgnoreCase(host)) { return pinned.clone(); }

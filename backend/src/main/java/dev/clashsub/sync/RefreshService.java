@@ -35,7 +35,12 @@ public class RefreshService {
         var base = sources.require(owner, sourceId); var completed = state.begin(owner, base, attemptId); if (completed != null) { return completed; }
         try {
             var fetched = fetcher.fetch(sources.request(base));
-            if (!fetched.success()) { return fail(owner, base, attemptId, "FAILED", ValidationReport.of(List.of(Diagnostic.error(fetched.errorCode() == null ? "UPSTREAM_FAILED" : fetched.errorCode(), "source", "上游请求失败，已保留旧节点和配置")))); }
+            if (!fetched.success()) {
+                String message = "UPSTREAM_ADDRESS_BLOCKED".equals(fetched.errorCode())
+                        ? "上游地址解析到受限网段，已保留旧节点和配置。若使用 Clash / Mihomo 的 Fake-IP，请选择部署者配置的可信出站代理，或让订阅域名返回真实 IP。"
+                        : "上游请求失败，已保留旧节点和配置";
+                return fail(owner, base, attemptId, "FAILED", ValidationReport.of(List.of(Diagnostic.error(fetched.errorCode() == null ? "UPSTREAM_FAILED" : fetched.errorCode(), "source", message))));
+            }
             var result = parser.parse(fetched.body(), InputFormat.valueOf(base.inputFormat()));
             if (result.hasErrors()) { return fail(owner, base, attemptId, "FAILED", new ValidationReport(result.errors(), result.warnings())); }
             if (result.validEmpty()) { return state.pending(owner, base, attemptId, fetched.body()); }

@@ -163,6 +163,66 @@ class UpstreamFetcherTest {
         assertThat(local(shortLimits).fetch(request(url(server, "/"))).errorCode()).isEqualTo("UPSTREAM_TOO_LARGE");
     }
 
+    @Test void trustedProxyReceivesHostnameWhenLocalDnsUsesFakeIp() throws Exception {
+        var proxy = server();
+        var target = new AtomicReference<String>();
+        proxy.createContext("/", exchange -> {
+            target.set(exchange.getRequestHeaders().getFirst("Host"));
+            byte[] body = "proxies: []".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length); exchange.getResponseBody().write(body); exchange.close();
+        });
+        var dns = new SafeDnsResolver(List.of(), host -> new InetAddress[]{InetAddress.getByName("198.18.0.7")});
+        var fetcher = new UpstreamFetcher(dns, limits, Map.of("default", url(proxy, "")));
+        var source = new SourceRequest("http://subscription.example/sub", Map.of(), "", "default");
+        var result = fetcher.fetch(source);
+        assertThat(result.success()).isTrue();
+        assertThat(target.get()).isEqualTo("subscription.example");
+        assertThat(result.body()).isEqualTo("proxies: []".getBytes(StandardCharsets.UTF_8));
+        assertThat(fetcher.fetch(request(source.url())).errorCode()).isEqualTo("UPSTREAM_ADDRESS_BLOCKED");
+    }
+
+    @Test void trustedProxyDoesNotPermitPrivateDnsAnswersOrSyntheticIpLiterals() throws Exception {
+        var proxy = server(); var requests = new AtomicInteger();
+        proxy.createContext("/", exchange -> { requests.incrementAndGet(); exchange.sendResponseHeaders(200, -1); exchange.close(); });
+        for (String address : List.of("127.0.0.1", "169.254.169.254", "10.0.0.1", "::1")) {
+            var dns = new SafeDnsResolver(List.of(), host -> new InetAddress[]{InetAddress.getByName(address)});
+            var fetcher = new UpstreamFetcher(dns, limits, Map.of("default", url(proxy, "")));
+            assertThat(fetcher.fetch(new SourceRequest("http://private.example/sub", Map.of(), "", "default")).errorCode())
+                    .isEqualTo("UPSTREAM_ADDRESS_BLOCKED");
+        }
+        var fakeDns = new SafeDnsResolver(List.of(), host -> new InetAddress[]{InetAddress.getByName("198.18.0.7")});
+        var fetcher = new UpstreamFetcher(fakeDns, limits, Map.of("default", url(proxy, "")));
+        for (String host : List.of("198.18.0.7", "[::ffff:198.18.0.7]", "3323068423", "0xc6120007")) {
+            assertThat(fetcher.fetch(new SourceRequest("http://" + host + "/sub", Map.of(), "", "default")).errorCode())
+                    .isEqualTo("UPSTREAM_ADDRESS_BLOCKED");
+        }
+        assertThat(requests.get()).isZero();
+    }
+
+    @Test void trustedProxyRejectsMixedFakeIpAndPrivateDnsAnswers() throws Exception {
+        var proxy = server(); var requests = new AtomicInteger();
+        proxy.createContext("/", exchange -> { requests.incrementAndGet(); exchange.sendResponseHeaders(200, -1); exchange.close(); });
+        var dns = new SafeDnsResolver(List.of(), host -> new InetAddress[]{
+                InetAddress.getByName("198.19.255.254"), InetAddress.getByName("169.254.169.254")});
+        var result = new UpstreamFetcher(dns, limits, Map.of("default", url(proxy, "")))
+                .fetch(new SourceRequest("http://subscription.example/sub", Map.of(), "", "default"));
+        assertThat(result.errorCode()).isEqualTo("UPSTREAM_ADDRESS_BLOCKED");
+        assertThat(requests.get()).isZero();
+    }
+
+    @Test void fakeIpProxyRedirectStillRejectsMetadataDestination() throws Exception {
+        var proxy = server(); var requests = new AtomicInteger();
+        proxy.createContext("/", exchange -> {
+            requests.incrementAndGet(); exchange.getResponseHeaders().add("Location", "http://169.254.169.254/latest/meta-data/");
+            exchange.sendResponseHeaders(302, -1); exchange.close();
+        });
+        var dns = new SafeDnsResolver(List.of(), host -> new InetAddress[]{InetAddress.getByName(host.equals("subscription.example") ? "198.18.0.7" : host)});
+        var result = new UpstreamFetcher(dns, limits, Map.of("default", url(proxy, "")))
+                .fetch(new SourceRequest("http://subscription.example/sub", Map.of(), "", "default"));
+        assertThat(result.errorCode()).isEqualTo("UPSTREAM_ADDRESS_BLOCKED");
+        assertThat(requests.get()).isEqualTo(1);
+    }
+
     private UpstreamFetcher local(FetchLimits limits) { return new UpstreamFetcher(new SafeDnsResolver(List.of("127.0.0.1/32"), InetAddress::getAllByName), limits, Map.of()); }
     private SourceRequest request(String url) { return new SourceRequest(url, Map.of("Authorization", "Bearer fixture-password"), "fixture-UA", ""); }
     private String url(HttpServer server, String path) { return "http://127.0.0.1:" + server.getAddress().getPort() + path; }

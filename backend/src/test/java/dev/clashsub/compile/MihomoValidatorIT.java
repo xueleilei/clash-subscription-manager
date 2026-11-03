@@ -33,6 +33,17 @@ class MihomoValidatorIT {
         assertThat(validator().validate(fixture + "\nrules: ['MATCH,REJECT']\n").errors()).isEmpty();
     }
 
+    @Test void acceptsCompatibilityFieldsPreservedByParserWithRealCore() throws Exception {
+        var parser = new dev.clashsub.parse.SubscriptionParser(new dev.clashsub.parse.ClashYamlParser(yaml, new dev.clashsub.parse.ProtocolFieldValidator()));
+        var parsed = parser.parse(Files.readAllBytes(root.resolve("tests/fixtures/subscriptions/mihomo-compatibility.yaml")), dev.clashsub.parse.InputFormat.AUTO);
+        assertThat(parsed.errors()).isEmpty();
+        var config = tools.jackson.databind.json.JsonMapper.builder().build().createObjectNode();
+        var proxies = config.putArray("proxies");
+        for (var node : parsed.nodes()) { proxies.add(node.connection().put("name", node.originalName()).put("type", node.protocol())); }
+        config.putArray("rules").add("MATCH,REJECT");
+        assertThat(validator().validate(yaml.dump(new dev.clashsub.parse.YamlDocument(config))).errors()).isEmpty();
+    }
+
     @Test void acceptsAllSevenUriProtocolsWithRealCore() throws Exception {
         var parser = new dev.clashsub.parse.SubscriptionParser(new dev.clashsub.parse.ClashYamlParser(yaml, new dev.clashsub.parse.ProtocolFieldValidator()));
         var parsed = parser.parse(Files.readAllBytes(root.resolve("tests/fixtures/subscriptions/uris.txt")), dev.clashsub.parse.InputFormat.AUTO);

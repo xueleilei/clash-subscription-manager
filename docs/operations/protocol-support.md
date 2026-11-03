@@ -32,6 +32,17 @@ ECH、自定义脚本或未列明扩展；失败时保留原订阅数据，用�
 字段参考：[固定版本 outbound](https://github.com/MetaCubeX/mihomo/tree/v1.19.33/adapter/outbound)。
 真实协议夹具位于 `tests/fixtures/subscriptions/clash.yaml`，在 `MihomoValidatorIT` 中通过实际内核检查。
 
+### 上游生成器兼容
+
+`tests/fixtures/subscriptions/mihomo-compatibility.yaml` 覆盖 ECH、smux、Hysteria2 数字参数和常见转换器默认值；解析后保留这些字段，并使用固定 Mihomo 内核校验输出。
+
+- VMess、VLESS、Trojan、Hysteria2 和 TUIC 支持 `ech-opts` 的 `enable`、`config`、`query-server-name`，遵循 [Mihomo 1.19.33 ECH 参数](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/adapter/outbound/ech.go)。
+- 节点支持 `smux` 的开关、协议、连接数、流数、padding、statistic、only-tcp 及 `brutal-opts`；嵌套字段仍按 [固定版本结构](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/adapter/outbound/singmux.go) 校验，未知字段不会被忽略。
+- Hysteria2 的 `up`、`down`、`hop-interval` 接受文本或非负整数，数字带宽按 Mbps、数字跳跃间隔按秒解释；对应 [固定版本选项](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/adapter/outbound/hysteria2.go)。
+- VLESS 兼容生成器附带的 `alterId: 0` 和 `cipher: auto`；TUIC 兼容冗余的 `udp: true`。这些默认值原样保留，其他值会报错，避免把不生效的参数误认为已配置成功。
+
+任意节点或参数校验失败时，整个候选订阅仍不提交，旧节点和代理组关系保持不变。
+
 ## URI 列表与 Base64
 
 自动识别直接 YAML、逐行节点链接，或一层 Base64 包装的 YAML/链接列表。
