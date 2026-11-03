@@ -9,6 +9,7 @@
 - 多套草稿与独立发布；自动刷新仅更新已发布定义，不夹带未发布编辑。
 - 可视化规则、标准文本批量导入、远程规则集和带校验的基础 YAML 编辑。
 - 完整配置导入为新草稿，默认保留本地节点，可后续明确关联上游。
+- 手动节点支持表单、单链接 / YAML 录入和高级参数维护；编辑与删除经相关方案手动发布后生效。
 - 单管理员登录、Session / CSRF、AES-GCM 敏感存储、可重置订阅 Token。
 
 技术栈：Java 21 / Spring Boot / MyBatis-Plus / MySQL 8.4，Vue 3 / TypeScript / Element Plus / CodeMirror，固定 Mihomo 1.19.33 进行离线配置校验。首版单管理员、单应用实例，数据按 owner 隔离，为后续多用户扩展保留边界。
@@ -47,6 +48,7 @@ docker compose -f compose.yaml -f compose.mysql.yaml up -d
 - [部署、版本及升级](docs/operations/deployment.md)
 - [备份与恢复](docs/operations/backup-restore.md)
 - [验收结果与正式界面](docs/operations/verification.md)
+- [手动节点维护](docs/operations/manual-nodes.md)
 - [前端结构与本地开发](docs/development/frontend.md)
 - [API 契约](docs/api/contracts.md)
 - [已确认设计](docs/superpowers/specs/2026-11-03-clash-subscription-manager-design.md)
