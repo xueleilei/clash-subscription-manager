@@ -96,6 +96,9 @@ public class ProtocolFieldValidator {
         enumValue(node, "network", protocol.equals("trojan") ? Set.of("tcp", "ws", "grpc") : Set.of("tcp", "ws", "grpc", "http", "h2"), path, errors, false);
         enumValue(node, "packet-encoding", Set.of("xudp", "packetaddr"), path, errors, false);
         enumValue(node, "flow", Set.of("", "xtls-rprx-vision"), path, errors, false);
+        if (node.path("flow").asString("").equals("xtls-rprx-vision") && !node.path("tls").asBoolean(false)) {
+            bad(errors, path + ".flow", "Vision 要求启用 TLS");
+        }
         enumValue(node, "encryption", Set.of("none", ""), path, errors, false);
         if (protocol.equals("hysteria2")) {
             enumValue(node, "obfs", Set.of("salamander", ""), path, errors, false);

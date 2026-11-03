@@ -166,16 +166,16 @@
 
 **Interfaces:** 消费任务 4 的 ParseResult/字段验证；`UriNodeAdapter.supports(String scheme): boolean`、`parse(String uri, int line): ParsedNodeResult`。AUTO 先识别 YAML mapping/节点 scheme，再尝试严格 Base64；拒绝多重任意递归解码。
 
-- [ ] 写每种协议的成功/失败参数用例，含标准/URL-safe Base64、缺 padding、IPv6 authority、转义密码/名称、VMess JSON、VLESS TLS/Reality/WS/gRPC、TUIC UUID、hy2 别名。未知 scheme 或一个未知连接参数整体失败。
+- [x] 写每种协议的成功/失败参数用例，含标准/URL-safe Base64、缺 padding、IPv6 authority、转义密码/名称、VMess JSON、VLESS TLS/Reality/WS/gRPC、TUIC UUID、hy2 别名。未知 scheme 或一个未知连接参数整体失败。
   ~~~java
   assertThat(parseFixture("same-list.txt").nodes()).isEqualTo(parseFixture("same-list.base64").nodes());
   assertThat(parseFixture("mixed-valid-invalid.txt").committable()).isFalse();
   assertThat(parseFixture("nameless-twice.txt").errors()).extracting(Diagnostic::code).contains("DUPLICATE_NODE_NAME");
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=UriSubscriptionParserTest test`，确认失败。
-- [ ] 在各 adapter 依据协议维护方规范实现字段映射；无名链接命名为协议/规范 host/port，不放凭据；相同合成名冲突拒绝。协议/传输不支持则具体报错，不猜测字段含义，不调用第三方转换。
-- [ ] 同命令及 `./scripts/mvn.sh -Dit.test=MihomoValidatorIT verify` 通过；protocol-support.md 列出支持/拒绝的 URI 变体和原始规范链接，保证承诺的 7 类均有真实检查夹具。
-- [ ] 提交：`feat: support uri and base64 subscription formats`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=UriSubscriptionParserTest test`，确认失败。
+- [x] 在各 adapter 依据协议维护方规范实现字段映射；无名链接命名为协议/规范 host/port，不放凭据；相同合成名冲突拒绝。协议/传输不支持则具体报错，不猜测字段含义，不调用第三方转换。
+- [x] 同命令及 `./scripts/mvn.sh -Dit.test=MihomoValidatorIT verify` 通过；protocol-support.md 列出支持/拒绝的 URI 变体和原始规范链接，保证承诺的 7 类均有真实检查夹具。
+- [x] 提交：`feat: support uri and base64 subscription formats`。
 
 ## Task 6: 来源、节点池存储与受控抓取
 

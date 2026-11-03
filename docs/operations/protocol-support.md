@@ -31,3 +31,34 @@ ECH、自定义脚本或未列明扩展；失败时保留原订阅数据，用�
 
 字段参考：[固定版本 outbound](https://github.com/MetaCubeX/mihomo/tree/v1.19.33/adapter/outbound)。
 真实协议夹具位于 `tests/fixtures/subscriptions/clash.yaml`，在 `MihomoValidatorIT` 中通过实际内核检查。
+
+## URI 列表与 Base64
+
+自动识别直接 YAML、逐行节点链接，或一层 Base64 包装的 YAML/链接列表。
+支持标准与 URL-safe 字母表及省略 padding；拒绝损坏编码和任意多层包装。
+协议自身规定的 VMess/SSR/SS 内部 Base64 字段正常解码。无名链接使用协议、规范化主机与端口命名，
+不把凭据放入名字；多个链接得到同名时要求用户修改来源名称，不自动加随机后缀。
+
+| scheme | 支持的分享形式与字段 | 拒绝的变体 |
+| --- | --- | --- |
+| ss | SIP002 百分号编码认证或 Base64URL userinfo；旧式整体 Base64；plugin=obfs-local/simple-obfs/v2ray-plugin | SS 2022 的 Base64 认证；未知插件参数 |
+| ssr | Base64URL 主体与密码；remarks、group、obfsparam、protoparam，允许空的可选字段 | 未知连接参数；group 只作为来源元数据，不自动建代理组 |
+| vmess | v2rayN v2 JSON；UUID authority URI；auto/none/zero/AES/ChaCha；TCP/WS/HTTP/H2/gRPC | 其他 JSON 字段、非 v2 版本、未知传输 |
+| vless | UUID authority；encryption=none；security=none/tls/reality；sni、fp、pbk、sid、flow、type、host、path、serviceName、alpn | XHTTP/KCP、Reality spiderX、其他 encryption、无 TLS 的 Vision |
+| trojan | 密码 authority；TLS、TCP/WS/gRPC；sni/peer、alpn、allowInsecure/insecure | security=none；未知扩展 |
+| hysteria2 / hy2 | auth authority，缺省端口 443，端口范围；sni、insecure、salamander、obfs-password、pinSHA256、alpn | Realm、ECH、未被固定内核模式覆盖的新混淆 |
+| tuic | v4 token 或 v5 UUID:password；sni、alpn、congestion_control、udp_relay_mode、allow_insecure/allowInsecure、disable_sni、reduce_rtt | 未列明的参数；两套认证混用 |
+
+VLESS/VMess 的 gRPC 仅支持 gun 模式；WS 支持 ed/eh 早期数据选项。重复 query key、冲突别名、
+在其他传输中无效的连接参数都报错。百分号解码使用严格 UTF-8，`+` 按 URI 字面字符保留。
+任意一行失败只返回定位诊断，不提供可提交的部分节点列表；已有数据与分组不受影响。
+全部 7 类 URI 的人工夹具在 `tests/fixtures/subscriptions/uris.txt`，转换后一起通过真实 Mihomo 检查。
+
+原始参考：[Shadowsocks SIP002](https://shadowsocks.org/doc/sip002.html)、
+[SSR 分享格式](https://github.com/shadowsocksrr/shadowsocks-rss/wiki/SSR-QRcode-scheme)、
+[v2rayN VMess JSON](https://github.com/2dust/v2rayN/wiki/Description-of-VMess-share-link)、
+[VLESS/VMess URI 提案](https://github.com/XTLS/Xray-core/discussions/716)、
+[Hysteria 2 URI](https://v2.hysteria.network/docs/developers/URI-Scheme/)。
+Trojan 与 TUIC 的分享参数按上表支持的通用客户端形式映射，协议字段依据
+[Trojan 配置](https://trojan-gfw.github.io/trojan/config)、
+[TUIC 协议](https://github.com/tuic-protocol/tuic/blob/master/SPEC.md)与固定 Mihomo 模式；不声称存在统一 TUIC URI 标准。

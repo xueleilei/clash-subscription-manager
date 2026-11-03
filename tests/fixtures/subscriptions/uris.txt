@@ -1,0 +1,7 @@
+ss://YWVzLTEyOC1nY206Zml4dHVyZS1wYXNzd29yZA@fixture.example.com:443#SS
+ssr://Zml4dHVyZS5leGFtcGxlLmNvbTo0NDM6YXV0aF9zaGExX3Y0OmFlcy0xMjgtY2ZiOnBsYWluOlptbDRkSFZ5WlMxd1lYTnpkMjl5WkEvP3JlbWFya3M9VTFOUw
+vmess://eyJ2IjoiMiIsInBzIjoiVk1lc3MiLCJhZGQiOiJmaXh0dXJlLmV4YW1wbGUuY29tIiwicG9ydCI6IjQ0MyIsImlkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiYWlkIjoiMCIsInNjeSI6ImF1dG8iLCJuZXQiOiJ0Y3AiLCJ0eXBlIjoibm9uZSIsInRscyI6InRscyIsInNuaSI6ImZpeHR1cmUuZXhhbXBsZS5jb20ifQ
+vless://00000000-0000-4000-8000-000000000001@fixture.example.com:443?encryption=none&security=tls&type=ws&host=fixture.example.com&path=%2Ffixture#VLESS
+trojan://fixture-password@fixture.example.com:443?sni=fixture.example.com#Trojan
+hy2://fixture-password@fixture.example.com:443?sni=fixture.example.com&obfs=salamander&obfs-password=fixture-obfs-password#Hysteria2
+tuic://00000000-0000-4000-8000-000000000001:fixture-password@fixture.example.com:443?congestion_control=bbr&udp_relay_mode=native&alpn=h3#TUIC
