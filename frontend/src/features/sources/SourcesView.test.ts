@@ -13,11 +13,11 @@ const source = (id: string, name = `来源 ${id}`) => ({ id, name, configVersion
 const node = { id: 'n1', sourceId: 'a', originalName: '香港 01', protocol: 'ss', region: 'HK', snapshotVersion: '1' }
 const empty = { id: 'e1', sourceId: 'a', configVersion: '1', snapshotVersion: '1', state: 'PENDING', createdAt: '2026-11-03T00:00:00Z' }
 const task = (id: string, sourceId: string, status = 'RUNNING') => ({ id, sourceId, status, trigger: 'MANUAL', createdAt: '', updatedAt: '', outcome: null })
-function serve(options: { sources?: ReturnType<typeof source>[]; decisions?: typeof empty[]; taskStatus?: string; expired?: boolean } = {}) {
+function serve(options: { sources?: ReturnType<typeof source>[]; decisions?: typeof empty[]; taskStatus?: string; expired?: boolean; proxyOptions?: string[] } = {}) {
  const sources = options.sources ?? [source('a'), source('b')]; let decisions = options.decisions ?? []; const writes: { path: string; method: string; body: Record<string, unknown> }[] = []
  mockApi((path, method, body) => {
    if (method !== 'GET') writes.push({ path, method, body })
-   if (path === '/sources/proxy-options') return reply([])
+   if (path === '/sources/proxy-options') return reply(options.proxyOptions ?? [])
    if (path === '/sources' && method === 'GET') return reply(sources)
    if (path === '/sources' && method === 'POST') { const value = { ...source(`s${sources.length}`), ...body }; sources.push(value as ReturnType<typeof source>); return reply(value) }
    if (path === '/sources/refresh-all') return reply(sources.map(s => task(`t${s.id}`, s.id)), 202)
@@ -46,6 +46,26 @@ test('adding two sources renders independent cards and does not render HTML from
   await expect.poll(() => document.querySelector('input[name=source-name]')).toBeNull()
  }
  expect(document.body.textContent).toContain('来源甲'); expect(document.body.textContent).toContain('来源乙'); expect(document.querySelector('script[data-untrusted]')).toBeNull()
+})
+test('new sources visibly select the configured trusted proxy and submit it by default', async () => {
+ const server = serve({ sources: [], proxyOptions: ['default'] }); mount(SourcesView, { attachTo: document.body })
+ await expect.poll(() => button('添加订阅').disabled).toBe(false); button('添加订阅').click(); await nextTick()
+ const proxy = document.querySelector<HTMLSelectElement>('select[name=source-proxy]')
+ expect(proxy).not.toBeNull(); expect(proxy?.closest('details')).toBeNull(); expect(proxy?.value).toBe('default')
+ await new DOMWrapper(document.querySelector('input[name=source-name]')!).setValue('自动代理')
+ await new DOMWrapper(document.querySelector('input[name=source-url]')!).setValue('https://fixture.invalid/sub')
+ button('保存订阅').click(); await expect.poll(() => server.writes.find(write => write.path === '/sources')?.body.outboundProxy).toBe('default')
+})
+test('direct connections stay selectable and absent proxy configuration defaults to direct', async () => {
+ const wrapper = mount(SourceForm, { props: { source: null, busy: false, proxyOptions: ['default'] }, attachTo: document.body })
+ await wrapper.get('select[name=source-proxy]').setValue('')
+ await wrapper.setProps({ proxyOptions: ['default'] })
+ await wrapper.get('form').trigger('submit')
+ expect((wrapper.emitted('submit')![0]![0] as Record<string, unknown>).outboundProxy).toBe('')
+ wrapper.unmount()
+ const direct = mount(SourceForm, { props: { source: null, busy: false, proxyOptions: [] }, attachTo: document.body })
+ await direct.get('form').trigger('submit')
+ expect((direct.emitted('submit')![0]![0] as Record<string, unknown>).outboundProxy).toBe('')
 })
 test('single and all refreshes report independent durable task results', async () => {
  const server = serve(); mount(SourcesView, { attachTo: document.body }); await expect.poll(() => document.querySelectorAll('[data-source-id]').length).toBe(2)
@@ -76,11 +96,11 @@ test('failed parsing keeps old node data visible and pausing only changes the sc
  expect(server.writes.some(c => c.path.includes('removal') || c.body.choice === 'CLEAR')).toBe(false)
  wrapper.unmount(); mount(NodePoolPage, { attachTo: document.body }); await expect.poll(() => document.body.textContent).toContain('香港 01')
 })
-test('editing a masked source preserves omitted credentials', async () => {
- const wrapper = mount(SourceForm, { props: { source: source('a'), busy: false, proxyOptions: [] }, attachTo: document.body })
+test('editing a masked source preserves omitted credentials and proxy even when a trusted proxy is configured', async () => {
+ const wrapper = mount(SourceForm, { props: { source: source('a'), busy: false, proxyOptions: ['default'] }, attachTo: document.body })
  await wrapper.get('input[name=source-name]').setValue('改名'); await wrapper.get('form').trigger('submit')
  const submitted = wrapper.emitted('submit')![0]![0] as Record<string, unknown>
- expect(submitted.name).toBe('改名'); expect(submitted).not.toHaveProperty('url'); expect(submitted).not.toHaveProperty('headers'); expect(submitted.expectedVersion).toBe('1')
+ expect(submitted.name).toBe('改名'); expect(submitted).not.toHaveProperty('url'); expect(submitted).not.toHaveProperty('headers'); expect(submitted).not.toHaveProperty('outboundProxy'); expect(submitted.expectedVersion).toBe('1')
 })
 test('source removal shows its impact and sends only the explicitly chosen keep-local mode', async () => {
  const server = serve(); mount(SourcesView, { attachTo: document.body }); await expect.poll(() => button('删除 来源 a')).toBeTruthy()
