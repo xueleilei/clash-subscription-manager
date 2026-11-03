@@ -135,13 +135,13 @@
 
 **Interfaces:** `MihomoValidator.validate(String outputYaml): ValidationReport`；`ValidationCopyFactory.create(String outputYaml, Path workDir): ValidationInput`（校验副本＋资源清单）；`SafeYaml.load(String): YamlDocument`、`dump(YamlDocument): String`。输入原文始终保持不变；任务 4、8、9 复用安全 YAML 边界，任务 10、11 消费检查器。
 
-- [ ] 写真实内核红灯：有效配置成功；错误协议参数/循环/规则目标缺失失败；空 select/url-test 只含 REJECT 可通过；超时可终止；URL/路径诱饵不会被读取或请求，原配置摘要不变。
-- [ ] 运行 `./scripts/mvn.sh -Dit.test=MihomoValidatorIT verify`，确认尚缺检查器。
-- [ ] 建立 SafeYaml 的安全构造/序列化，禁止重复 key/自定义标签，深度 50、别名引用 50、文本 10 MiB；YamlDocument 是 JSON 兼容的映射/序列/标量树，解析错误带行列。该组件先于校验副本实现，任务 4 扩展其坏输入覆盖。
-- [ ] 固定 1.19.33 及 SHA-256；清理子进程继承的 CLASH_* 和代理环境，参数数组执行 `mihomo -t -d <独立目录> -f -`，从 stdin 输入副本，避开命令行明文和默认配置目录初始化。最多并行 2 个、单次 10 秒、输出上限 64 KiB，结束清理临时目录。
-- [ ] 基于该 tag 的解析路径建立允许/替换表：规则提供者改为受控同 behavior 测试资源；GeoSite/GeoIP 使用固定资源；所有文件/证书/UI/脚本类字段禁止访问宿主路径，不能安全验证的字段给阻断诊断。schema/URL/行为格式先由管理器校验，副本替换不能掩盖这些错误。用无网络容器及请求诱饵验证资源完整性；保留产物与副本的差异报告，不宣称已验证远端内容。
-- [ ] 同命令全部通过，写明最低测试内核与验证限制。若副作用无法控制，先解决封装再继续发布链路，禁止用假返回代替。
-- [ ] 提交：`feat: validate generated configs with pinned mihomo`。
+- [x] 写真实内核红灯：有效配置成功；错误协议参数/循环/规则目标缺失失败；空 select/url-test 只含 REJECT 可通过；超时可终止；URL/路径诱饵不会被读取或请求，原配置摘要不变。
+- [x] 运行 `./scripts/mvn.sh -Dit.test=MihomoValidatorIT verify`，确认尚缺检查器。
+- [x] 建立 SafeYaml 的安全构造/序列化，禁止重复 key/自定义标签，深度 50、别名引用 50、文本 10 MiB；YamlDocument 是 JSON 兼容的映射/序列/标量树，解析错误带行列。该组件先于校验副本实现，任务 4 扩展其坏输入覆盖。
+- [x] 固定 1.19.33 及 SHA-256；清理子进程继承的 CLASH_* 和代理环境，参数数组执行 `mihomo -t -d <独立目录> -f -`，从 stdin 输入副本，避开命令行明文和默认配置目录初始化。最多并行 2 个、单次 10 秒、输出上限 64 KiB，结束清理临时目录。
+- [x] 基于该 tag 的解析路径建立允许/替换表：规则提供者改为受控同 behavior 测试资源；GeoSite/GeoIP 使用固定资源；所有文件/证书/UI/脚本类字段禁止访问宿主路径，不能安全验证的字段给阻断诊断。schema/URL/行为格式先由管理器校验，副本替换不能掩盖这些错误。用无网络容器及请求诱饵验证资源完整性；保留产物与副本的差异报告，不宣称已验证远端内容。
+- [x] 同命令全部通过，写明最低测试内核与验证限制。若副作用无法控制，先解决封装再继续发布链路，禁止用假返回代替。
+- [x] 提交：`feat: validate generated configs with pinned mihomo`。
 
 ## Task 4: 严格解析 Clash/Mihomo YAML
 

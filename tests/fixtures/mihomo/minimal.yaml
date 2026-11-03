@@ -1,0 +1,18 @@
+mixed-port: 7890
+mode: rule
+log-level: warning
+dns:
+  enable: false
+proxy-groups:
+  - name: Selection
+    type: select
+    proxies: [REJECT]
+  - name: Automatic
+    type: url-test
+    proxies: [REJECT]
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+rules:
+  - GEOSITE,cn,REJECT
+  - GEOIP,CN,REJECT,no-resolve
+  - MATCH,Selection

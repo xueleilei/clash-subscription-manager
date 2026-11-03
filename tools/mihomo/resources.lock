@@ -1,0 +1,10 @@
+# Locked 2026-11-03. Core archive SHA-256 values from official GitHub release asset metadata.
+# kind platform-or-name sha256 url-or-vendored-gzip
+core darwin-arm64 060b64b0f2c9a310831db0fe4adb2878de67bfa606c311813c1f13966aa504b6 https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-darwin-arm64-v1.19.33.gz
+core linux-arm64 ba408b317080ee265c46cb923a50018c1b82cbd708551cdd46a1e3e307396187 https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-arm64-v1.19.33.gz
+core linux-amd64 8ec92e7b2fdc6b853ba00156bab7e4e965c8b0d843b8c4ac8ab98795f02ad524 https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-amd64-v1-v1.19.33.gz
+# Resource hashes cover uncompressed bytes, verified against official asset metadata before vendoring.
+resource geosite.dat 7297bf574a563aed8a69528e1f3a2bb275911fb83ebe3082494213d97ab09deb resources/geosite.dat.gz
+resource geoip.dat fbf747a085be25eb61ecac8c27140b4ab0bf8181af6fdb104caa325bd93cf117 resources/geoip.dat.gz
+resource country.mmdb 9a485c40b6fda868f3d3b981f928b8ab3d1e400fac1bf9cc8d27ebc08ae9bb0b resources/country.mmdb.gz
+resource GeoLite2-ASN.mmdb 3169b9ea7dad762f6837b95408dadc1173f47be33be2d83b6c90e67a57a7eb2e resources/GeoLite2-ASN.mmdb.gz
