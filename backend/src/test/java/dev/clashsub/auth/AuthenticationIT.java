@@ -35,6 +35,7 @@ class AuthenticationIT {
     private static final String USERNAME = "fixture-admin";
     private static final String PASSWORD = "Fixture-password-234567";
     private static final Path PASSWORD_FILE = passwordFile();
+    private static final Path KEY_FILE = keyFile();
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Container
@@ -47,6 +48,7 @@ class AuthenticationIT {
         properties.add("spring.datasource.password", MYSQL::getPassword);
         properties.add("clash.admin.username", () -> USERNAME);
         properties.add("clash.admin.password-file", PASSWORD_FILE::toString);
+        properties.add("clash.encryption-key-file", KEY_FILE::toString);
         properties.add("server.servlet.session.cookie.secure", () -> false);
     }
 
@@ -110,7 +112,8 @@ class AuthenticationIT {
                         "--spring.datasource.username=" + MYSQL.getUsername(),
                         "--spring.datasource.password=" + MYSQL.getPassword(),
                         "--clash.admin.username=do-not-replace-admin",
-                        "--clash.admin.password-file=/missing-bootstrap-secret")) {
+                        "--clash.admin.password-file=/missing-bootstrap-secret",
+                        "--clash.encryption-key-file=" + KEY_FILE)) {
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_user", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("SELECT password_hash FROM app_user WHERE username = ?", String.class, USERNAME))
                     .isEqualTo(before);
@@ -141,6 +144,15 @@ class AuthenticationIT {
 
     private JsonNode data(HttpResponse<String> response) throws Exception {
         return JSON.readTree(response.body()).path("data");
+    }
+
+    private static Path keyFile() {
+        try {
+            var path = Files.createTempFile("clash-test-key-", ".secret");
+            Files.write(path, new byte[32]);
+            path.toFile().deleteOnExit();
+            return path;
+        } catch (java.io.IOException exception) { throw new java.io.UncheckedIOException(exception); }
     }
 
     private static Path passwordFile() {

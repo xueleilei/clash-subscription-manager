@@ -118,16 +118,16 @@
 
 **Interfaces:** 提供 `NodeIdentity.key(UUID sourceId, String exactName): NodeKey`；`SecretCipher.encrypt(byte[] plaintext, String context): EncryptedValue`、`decrypt(EncryptedValue, String context): byte[]`；`OwnerRevisionGuard.compareAndIncrement(UUID ownerId, long expected): void`（必须在调用方事务中，冲突抛出版本异常）。
 
-- [ ] 写身份/加密红灯：相同来源名称同 key；不同来源、大小写、组合 Unicode、尾随空格不同 key；同文两次加密密文不同，篡改/context 变更解密失败。
+- [x] 写身份/加密红灯：相同来源名称同 key；不同来源、大小写、组合 Unicode、尾随空格不同 key；同文两次加密密文不同，篡改/context 变更解密失败。
   ~~~java
   assertThat(key(sourceA, "香港")).isNotEqualTo(key(sourceA, "香港 "));
   assertThat(key(sourceA, "é")).isNotEqualTo(key(sourceA, "e\u0301"));
   assertThat(cipher.decrypt(cipher.encrypt(secret, "node:1"), "node:1")).isEqualTo(secret);
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=NodeIdentityTest,SecretCipherTest test`，确认失败。
-- [ ] 实现 SHA-256 名称索引＋原 UTF-8 值核验，不 trim/大小写折叠/NFC；AES-256-GCM、随机 96-bit nonce、AAD context、带 keyId 的密文版本；APP_ENCRYPTION_KEY_FILE 提供 32-byte 密钥，不自动生成后丢失。加密覆盖节点、来源请求设置、草稿、快照、发布 YAML 与可恢复 Token。
-- [ ] 同命令通过；补充错误密钥启动/读取失败的断言，禁止敏感 record 自动 toString 泄露连接配置。
-- [ ] 提交：`feat: define stable identities and encrypted domain storage`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=NodeIdentityTest,SecretCipherTest test`，确认失败。
+- [x] 实现 SHA-256 名称索引＋原 UTF-8 值核验，不 trim/大小写折叠/NFC；AES-256-GCM、随机 96-bit nonce、AAD context、带 keyId 的密文版本；APP_ENCRYPTION_KEY_FILE 提供 32-byte 密钥，不自动生成后丢失。加密覆盖节点、来源请求设置、草稿、快照、发布 YAML 与可恢复 Token。
+- [x] 同命令通过；补充错误密钥启动/读取失败的断言，禁止敏感 record 自动 toString 泄露连接配置。
+- [x] 提交：`feat: define stable identities and encrypted domain storage`。
 
 ## Task 3: 先验证 Mihomo 检查器可安全封装
 

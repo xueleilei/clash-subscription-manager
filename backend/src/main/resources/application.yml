@@ -35,6 +35,7 @@ mybatis-plus:
   global-config:
     banner: false
 clash:
+  encryption-key-file: ${APP_ENCRYPTION_KEY_FILE:}
   admin:
     username: ${ADMIN_USERNAME:admin}
     password-file: ${ADMIN_PASSWORD_FILE:}
