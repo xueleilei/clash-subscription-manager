@@ -8,7 +8,7 @@
 
 **Tech Stack:** Java 21、Spring Boot 4.1.2、Maven、MyBatis-Plus 3.5.18、Flyway、MySQL 8.4；Vue 3、TypeScript、Vite、Element Plus、CodeMirror；JUnit、Testcontainers、Vitest、Playwright；Mihomo 1.19.33。
 
-**Spec:** [已确认设计](../specs/2026-11-03-clash-subscription-manager-design.md)，用户于 2026-11-03 确认。本文是执行计划，勾选项目前均未完成；未安装生产依赖、运行正式应用或宣称测试通过。
+**Spec:** [已确认设计](../specs/2026-11-03-clash-subscription-manager-design.md)，用户于 2026-11-03 确认。本文记录执行计划与已完成任务；下方环境基线为计划编写时快照，实际验证结果见 `docs/operations/verification.md`。
 
 ## Global Constraints
 

@@ -85,3 +85,17 @@ test('publication acknowledgement advances the saved baseline while preserving e
  expect(workspace.version.value).toBe('2');expect(workspace.draft.value?.baseYaml).toContain('8882');expect(workspace.dirty.value).toBe(true);expect(workspace.serverChanged.value).toBe(false)
  workspace.updateDocument(submitted);expect(workspace.dirty.value).toBe(false)
 })
+test('a draft read started before save cannot roll the saved version or later input backwards', async () => {
+ const pending = deferred<Response>(); let reads = 0
+ await api((_path, method, body) => {
+  if (method === 'PUT') return reply(draftFixture('p1', '2', body.document as ProfileDocument))
+  return ++reads === 1 ? reply(draftFixture()) : pending.promise
+ })
+ const workspace = start(); await expect.poll(() => workspace.version.value).toBe('1')
+ const edited = { ...documentFixture(), baseYaml: 'mixed-port: 8888\n' }; workspace.updateDocument(edited)
+ const reading = workspace.reload(); await expect.poll(() => reads).toBe(2)
+ await workspace.save(); expect(workspace.version.value).toBe('2'); expect(workspace.dirty.value).toBe(false)
+ pending.resolve(reply(draftFixture())); await reading
+ expect(workspace.version.value).toBe('2'); expect(workspace.draft.value?.baseYaml).toBe(edited.baseYaml)
+ expect(workspace.dirty.value).toBe(false); expect(workspace.serverChanged.value).toBe(false)
+})

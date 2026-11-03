@@ -24,13 +24,16 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
   target.document = copy(value.document); target.baseline = encode(value.document); target.version = value.version
   target.diagnostics = value.diagnostics; target.latest = value; target.serverChanged = false; target.notice = ''
  }
+ function isOutdated(target: DraftState, value: DraftView) {
+  return BigInt(value.version) < BigInt(target.version || '0') || BigInt(value.version) < BigInt(target.latest?.version || '0')
+ }
  function updateDocument(document: ProfileDocument) { if (entry.value) entry.value.document = copy(document) }
  async function load(discard: boolean) {
   const target = entry.value; if (!target || !session.ownerId.value || !currentProfileId.value) return
   const key = currentKey(), currentEpoch = epoch, current = ++sequence; read?.abort(); read = new AbortController(); loading.value = true; error.value = ''
   try {
    const result = await request<DraftView>(`/profiles/${currentProfileId.value}/draft`, { signal: read.signal })
-   if (current !== sequence || currentEpoch !== epoch || key !== currentKey() || disposed) return
+   if (current !== sequence || currentEpoch !== epoch || key !== currentKey() || disposed || isOutdated(target, result)) return
    if (discard || !isDirty(target)) accept(target, result)
    else { target.latest = result; if (target.version !== result.version) target.serverChanged = true }
   } finally { if (current === sequence) loading.value = false }
@@ -43,9 +46,12 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
   const controller = new AbortController(); writes.add(controller)
   try {
    const result = await request<DraftView>(`/profiles/${id}/draft`, { method: 'PUT', body: { expectedVersion: target.version, document: sent }, signal: controller.signal })
-   if (currentEpoch === epoch && cache.get(key) === target) {
+   if (currentEpoch === epoch && cache.get(key) === target && BigInt(result.version) >= BigInt(target.version || '0')) {
+    if (target === entry.value) { sequence++; read?.abort(); loading.value = false }
     if (encode(target.document) === sentText) target.document = copy(result.document)
-    target.baseline = encode(result.document); target.version = result.version; target.diagnostics = result.diagnostics; target.latest = result; target.serverChanged = false; target.notice = ''
+    target.baseline = encode(result.document); target.version = result.version; target.diagnostics = result.diagnostics
+    if (!target.latest || BigInt(target.latest.version) <= BigInt(result.version)) target.latest = result
+    target.serverChanged = BigInt(target.latest.version) > BigInt(result.version); target.notice = ''
    }
    return result
   } catch (cause) { if (cause instanceof ApiError && (cause.status === 409 || cause.status === 404) && currentEpoch === epoch) target.serverChanged = true; throw cause }
@@ -58,7 +64,7 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
   const controller = new AbortController(); writes.add(controller)
   try {
    const result = await request<DraftView>(`/profiles/${id}/draft`, {signal:controller.signal})
-   if (currentEpoch !== epoch || cache.get(key) !== target || BigInt(result.version) < BigInt(target.version || '0')) return
+   if (currentEpoch !== epoch || cache.get(key) !== target || isOutdated(target, result)) return
    const sentText = encode(submitted)
    if (encode(target.document) === sentText) accept(target, result)
    else if (encode(result.document) === sentText) {
@@ -71,7 +77,7 @@ export function useProfileDraft(profileId: MaybeRefOrGetter<string>) {
   const key = currentKey(), currentEpoch = epoch, current = ++sequence; read?.abort(); read = new AbortController(); loading.value = true
   try {
    const [server, nodes] = await Promise.all([request<DraftView>(`/profiles/${currentProfileId.value}/draft`, { signal: read.signal }), readNodeSummaries(read.signal)])
-   if (current !== sequence || currentEpoch !== epoch || currentKey() !== key || disposed) return
+   if (current !== sequence || currentEpoch !== epoch || currentKey() !== key || disposed || isOutdated(target, server)) return
    const active = new Set(nodes.map(node => node.id)), local = copy(target.document); let removed = 0
    for (const group of local.groups) group.members = group.members.filter(member => { if (member.kind === 'NODE' && !active.has(member.id!)) { removed++; return false }; return true })
    for (const rule of local.rules) if (rule.target.kind === 'NODE' && !active.has(rule.target.id!)) { removed++; rule.target = { kind: 'REJECT', id: null, unresolvedName: null }; rule.issues = [...rule.issues, {severity:'WARNING',code:'REMOVED_NODE_TARGET',path:'rules',line:null,column:null,message:'原目标节点已失效，自动改为 REJECT'}] }

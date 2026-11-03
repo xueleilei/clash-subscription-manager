@@ -1,8 +1,10 @@
-import { computed, onScopeDispose, shallowRef } from 'vue'
+import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 import { errorMessage, request } from '../../api/client'
+import { useSession } from '../auth/useSession'
 import type { EmptyDecision, TaskView } from '../../types/domain'
 const active = (task: TaskView) => task.status === 'QUEUED' || task.status === 'RUNNING'
 export function useRefreshTasks(changed: () => Promise<void> = async () => {}) {
+  const session = useSession()
   const tasks = shallowRef<TaskView[]>([]), decisions = shallowRef<EmptyDecision[]>([]), error = shallowRef('')
   const activeCount = computed(() => tasks.value.filter(active).length)
   let timer: ReturnType<typeof setTimeout> | undefined, disposed = false, polling = false, reads = new AbortController(), sourceIds: string[] = []
@@ -13,9 +15,9 @@ export function useRefreshTasks(changed: () => Promise<void> = async () => {}) {
     tasks.value = [...map.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 200)
   }
   async function loadDecisions() { decisions.value = await request<EmptyDecision[]>('/empty-decisions', { signal: reads.signal }) }
-  function schedule() { clearTimeout(timer); if (!disposed && document.visibilityState !== 'hidden' && activeCount.value) timer = setTimeout(() => void poll(), 1500) }
+  function schedule() { clearTimeout(timer); if (!disposed && session.status.value === 'authenticated' && document.visibilityState !== 'hidden' && activeCount.value) timer = setTimeout(() => void poll(), 1500) }
   async function poll() {
-    if (disposed || polling || document.visibilityState === 'hidden') return
+    if (disposed || polling || session.status.value !== 'authenticated' || document.visibilityState === 'hidden') return
     polling = true
     try {
       const values = await Promise.all(tasks.value.filter(active).map(task => request<TaskView>(`/tasks/${task.id}`, { signal: reads.signal })))
@@ -36,9 +38,10 @@ export function useRefreshTasks(changed: () => Promise<void> = async () => {}) {
   }
   function stopPolling() { clearTimeout(timer); reads.abort() }
   function visibility() {
-    if (document.visibilityState === 'hidden') stopPolling()
+    if (document.visibilityState === 'hidden' || session.status.value !== 'authenticated') stopPolling()
     else { reads = new AbortController(); void load(sourceIds).then(changed).catch(cause => { error.value = errorMessage(cause) }) }
   }
+  watch(session.status, visibility)
   document.addEventListener('visibilitychange', visibility)
   onScopeDispose(() => { disposed = true; stopPolling(); lifetime.abort(); document.removeEventListener('visibilitychange', visibility) })
   return { tasks, decisions, error, activeCount, load, refreshOne, refreshAll, decideEmpty, stopPolling }

@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { mount, DOMWrapper } from '@vue/test-utils'
 import { effectScope, nextTick } from 'vue'
 import SourcesView from './SourcesView.vue'
@@ -6,6 +6,9 @@ import NodePoolPage from './NodePoolPage.vue'
 import SourceForm from './SourceForm.vue'
 import { useRefreshTasks } from './useRefreshTasks'
 import { mockApi, reply, button } from '../../test/http'
+import { deferred } from '../../test/fixtures'
+import { useSession } from '../auth/useSession'
+import { request } from '../../api/client'
 const source = (id: string, name = `来源 ${id}`) => ({ id, name, configVersion: '1', snapshotVersion: '1', enabled: true, refreshIntervalSeconds: 21600, inputFormat: 'AUTO' as const, hostHint: 'fixture.invalid', syncStatus: 'OK', nodeCount: 1, lastAttemptTime: null, lastSuccessTime: null, nextRefreshTime: null, lastErrorCode: null })
 const node = { id: 'n1', sourceId: 'a', originalName: '香港 01', protocol: 'ss', region: 'HK', snapshotVersion: '1' }
 const empty = { id: 'e1', sourceId: 'a', configVersion: '1', snapshotVersion: '1', state: 'PENDING', createdAt: '2026-11-03T00:00:00Z' }
@@ -31,11 +34,12 @@ function serve(options: { sources?: ReturnType<typeof source>[]; decisions?: typ
  })
  return { sources, writes }
 }
+beforeEach(async () => { mockApi(() => reply({ id: crypto.randomUUID(), username: 'admin' })); await useSession().resume() })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.innerHTML = '' })
 test('adding two sources renders independent cards and does not render HTML from names', async () => {
  const server = serve({ sources: [] }); mount(SourcesView, { attachTo: document.body }); await expect.poll(() => document.body.textContent).toContain('添加订阅')
  for (const name of ['来源甲', '<script data-untrusted>来源乙</script>']) {
-  button('添加订阅').click(); await nextTick()
+  await expect.poll(() => button('添加订阅').disabled).toBe(false); button('添加订阅').click(); await nextTick()
   await new DOMWrapper(document.querySelector('input[name=source-name]')!).setValue(name)
   await new DOMWrapper(document.querySelector('input[name=source-url]')!).setValue('https://fixture.invalid/sub')
   await expect.poll(() => button('保存订阅').disabled).toBe(false); button('保存订阅').click(); await expect.poll(() => server.sources.length).toBe(name === '来源甲' ? 1 : 2)
@@ -102,4 +106,38 @@ test('active task polling pauses while hidden and stops when its scope is dispos
  await vi.advanceTimersByTimeAsync(6000); expect(taskReads).toBe(1)
  scope.stop(); visibility.mockReturnValue('visible'); document.dispatchEvent(new Event('visibilitychange'))
  await vi.advanceTimersByTimeAsync(6000); expect(taskReads).toBe(1)
+})
+test('rapid deletion selections cannot mismatch a source name and its removal preview', async () => {
+ const pending = deferred<Response>(); const previews: string[] = [], applied: string[] = []
+ mockApi((path, method) => {
+  if (path === '/sources') return reply([source('a'), source('b')])
+  if (path === '/sources/proxy-options' || path === '/empty-decisions' || path.endsWith('/history')) return reply([])
+  if (path.endsWith('/removal/preview')) { previews.push(path); return pending.promise }
+  if (path.endsWith('/apply')) { applied.push(path); return reply(null) }
+  throw new Error(`${method} ${path}`)
+ })
+ mount(SourcesView, { attachTo: document.body }); await expect.poll(() => button('重新读取').disabled).toBe(false)
+ button('删除 来源 a').click(); button('删除 来源 b').click()
+ await expect.poll(() => previews).toEqual(['/sources/a/removal/preview'])
+ pending.resolve(reply({ id: 'preview-a', ownerRevision: '1', expiresAt: '', sourceId: 'a', nodeCount: 1, affectedProfiles: [] }))
+ await expect.poll(() => document.querySelector('.el-dialog strong')?.textContent).toBe('来源 a')
+ button('删除并清空节点').click(); await expect.poll(() => applied).toEqual(['/source-removals/preview-a/apply'])
+})
+test('retained source views stop background polling while the session is expired and resume after login', async () => {
+ let reads = 0, authorized = true; const owner = crypto.randomUUID()
+ mockApi(path => {
+  if (path === '/session') return authorized ? reply({ id: owner, username: 'admin' }) : reply(null, 401)
+  if (path.endsWith('/history')) return reply([task('t1', 'a')])
+  if (path === '/empty-decisions') return reply([])
+  if (path === '/tasks/t1') { reads++; return reply(task('t1', 'a')) }
+  throw new Error(path)
+ })
+ await useSession().resume(); vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+ const scope = effectScope(), refresh = scope.run(() => useRefreshTasks())!
+ try {
+  await refresh.load(['a']); await vi.advanceTimersByTimeAsync(1500); expect(reads).toBe(1)
+  authorized = false; await request('/session').catch(() => {}); const before = reads
+  await vi.advanceTimersByTimeAsync(6000); expect(reads).toBe(before)
+  authorized = true; await useSession().resume(); await vi.waitFor(() => expect(reads).toBeGreaterThan(before), { timeout: 3000, interval: 200 })
+ } finally { scope.stop() }
 })
