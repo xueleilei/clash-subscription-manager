@@ -17,7 +17,7 @@ export interface NodeSummary { id: Id; sourceId: Id | null; originalName: string
 export interface NodeSpec extends Pick<NodeSummary, 'id' | 'sourceId' | 'originalName' | 'protocol'> { connection: JsonObject; dialerRef: TargetRef | null }
 export interface Page<T> { items: T[]; total: number; page: number; size: number }
 export type InputFormat = 'AUTO' | 'CLASH_YAML' | 'URI_LIST' | 'BASE64'
-export interface SourceView { id: Id; name: string; configVersion: Version; snapshotVersion: Version; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; hostHint: string; syncStatus: string; lastAttemptTime: string | null; lastSuccessTime: string | null; nextRefreshTime: string | null; lastErrorCode: string | null }
+export interface SourceView { id: Id; name: string; configVersion: Version; snapshotVersion: Version; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; hostHint: string; syncStatus: string; nodeCount: number; lastAttemptTime: string | null; lastSuccessTime: string | null; nextRefreshTime: string | null; lastErrorCode: string | null }
 export interface SourceRequest { url: string; headers: Record<string, string>; userAgent: string; outboundProxy: string }
 export interface SourceCommand { id?: Id; expectedVersion?: Version; name: string; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; url?: string; headers?: Record<string, string>; userAgent?: string; outboundProxy?: string }
 export interface ChangeSummary { added: number; updated: number; removed: number; profiles: Record<Id, { removedMembers: number; rejectedRuleIds: Id[]; emptyGroupIds: Id[] }> }

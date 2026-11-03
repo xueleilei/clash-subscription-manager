@@ -34,6 +34,11 @@ public class NodeRepository {
         for (var row : mapper.all(owner.toString())) { var node = decode(row); values.put(node.id(), node); }
         return new NodeCatalog(values);
     }
+    public Map<UUID, Long> countsBySource(UUID owner) {
+        var counts = new HashMap<UUID, Long>();
+        for (var row : mapper.countsBySource(owner.toString())) { counts.put(UUID.fromString(row.sourceId()), row.nodeCount()); }
+        return Map.copyOf(counts);
+    }
     public List<NodeSpec> sourceHistory(UUID owner, UUID source) {
         sources.require(owner, source);
         return mapper.source(owner.toString(), source.toString()).stream().map(this::decode).toList();

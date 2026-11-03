@@ -347,16 +347,16 @@
 
 **Interfaces:** `useSources(): {sources, nodes, query, save, reload}`；`useRefreshTasks(): {tasks, refreshOne, refreshAll, decideEmpty, stopPolling}`。SourceForm props=source/busy、emit=submit(SourceCommand)；EmptyDecisionDialog props=decision、emit=choose('KEEP'|'CLEAR')；NodePoolView props=nodes/query、emit=query-change/reveal/bind。
 
-- [ ] 写红灯：添加两来源独立显示；单个/全部刷新任务状态；有效空仅提供保留/清空，关闭对话不发 CLEAR；重复空不会反复弹；部分解析失败仍显示旧节点；周期暂停不清空。
+- [x] 写红灯：添加两来源独立显示；单个/全部刷新任务状态；有效空仅提供保留/清空，关闭对话不发 CLEAR；重复空不会反复弹；部分解析失败仍显示旧节点；周期暂停不清空。
   ~~~ts
   expect(emptyDialog.getByRole('button', {name: '保留旧数据'})).toBeVisible()
   expect(emptyDialog.getByRole('button', {name: '清空节点'})).toBeVisible()
   expect(calls.filter(c => c.choice === 'CLEAR')).toHaveLength(0)
   ~~~
-- [ ] 运行 `pnpm --dir frontend test --run src/features/sources/SourcesView.test.ts`，确认失败。
-- [ ] 实现列表、脱敏编辑/显式凭据查看、格式/周期/请求高级设置、节点搜索与筛选、历史差异和空结果待办。轮询仅在活跃任务/页面可见时运行，卸载取消；过期确认 409 提醒重新读取。删除来源展示影响方案与 CLEAR/KEEP_LOCAL 两种选择。
-- [ ] 同命令和 typecheck/build 通过；任务错误定位到来源/节点/字段，不显示原始订阅响应或凭据。
-- [ ] 提交：`feat: manage sources nodes and empty refresh decisions`。
+- [x] 运行 `pnpm --dir frontend test --run src/features/sources/SourcesView.test.ts`，确认失败。
+- [x] 实现列表、脱敏编辑/显式凭据查看、格式/周期/请求高级设置、节点搜索与筛选、历史差异和空结果待办。轮询仅在活跃任务/页面可见时运行，卸载取消；过期确认 409 提醒重新读取。删除来源展示影响方案与 CLEAR/KEEP_LOCAL 两种选择。
+- [x] 同命令和 typecheck/build 通过；任务错误定位到来源/节点/字段，不显示原始订阅响应或凭据。
+- [x] 提交：`feat: manage sources nodes and empty refresh decisions`。
 
 ## Task 16: A 三栏代理组工作台与草稿冲突恢复
 

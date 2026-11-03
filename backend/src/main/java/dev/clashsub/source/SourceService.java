@@ -15,11 +15,15 @@ public class SourceService {
     private final SourceRepository repository;
     private final OwnerRevisionGuard revisions;
     private final UpstreamFetcher fetcher;
-    public SourceService(SourceRepository repository, OwnerRevisionGuard revisions, UpstreamFetcher fetcher) {
-        this.repository = repository; this.revisions = revisions; this.fetcher = fetcher;
+    private final dev.clashsub.node.NodeRepository nodes;
+    public SourceService(SourceRepository repository, OwnerRevisionGuard revisions, UpstreamFetcher fetcher, dev.clashsub.node.NodeRepository nodes) {
+        this.repository = repository; this.revisions = revisions; this.fetcher = fetcher; this.nodes = nodes;
     }
 
-    public List<SourceView> list(UUID owner) { return repository.list(owner).stream().map(this::view).toList(); }
+    public List<SourceView> list(UUID owner) {
+        var counts = nodes.countsBySource(owner);
+        return repository.list(owner).stream().map(row -> view(row, counts.getOrDefault(UUID.fromString(row.id()), 0L))).toList();
+    }
     public SourceRequest credentials(UUID owner, UUID id) { return repository.request(repository.require(owner, id)); }
     public List<String> proxyNames() { return fetcher.proxyNames(); }
 
@@ -48,14 +52,14 @@ public class SourceService {
                 interval, format.name(), repository.encrypt(owner, id, request), "PENDING", null, null, Instant.now(), null, null, null);
         revisions.compareAndIncrement(owner, revisions.current(owner));
         if (previous == null) { repository.insert(row); } else { repository.update(row, previous.configVersion()); }
-        return view(repository.require(owner, id));
+        return view(repository.require(owner, id), nodes.countsBySource(owner).getOrDefault(id, 0L));
     }
 
-    private SourceView view(SourceDO row) {
+    private SourceView view(SourceDO row, long nodeCount) {
         String host = SourceRequestValidator.url(repository.request(row).url()).getHost();
         return new SourceView(UUID.fromString(row.id()), row.name(), Long.toString(row.configVersion()), Long.toString(row.snapshotVersion()),
                 row.enabled(), row.refreshIntervalSeconds(), InputFormat.valueOf(row.inputFormat()), host, row.syncStatus(),
-                row.lastAttemptTime(), row.lastSuccessTime(), row.nextRefreshTime(), row.lastErrorCode());
+                row.lastAttemptTime(), row.lastSuccessTime(), row.nextRefreshTime(), row.lastErrorCode(), nodeCount);
     }
     private boolean placeholder(String value) { return value.matches("[*•●]{3,}") || value.contains("••••") || value.equalsIgnoreCase("[redacted]"); }
 }

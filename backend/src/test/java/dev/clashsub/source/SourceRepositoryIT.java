@@ -122,6 +122,19 @@ class SourceRepositoryIT extends MySqlIntegrationTest {
         assertThat(nodes.connection(owner, id).originalName()).isEqualTo("First");
     }
 
+    @Test void sourceListCountsOnlyCurrentOwnedNodes() {
+        var first = service.save(owner, create()); var second = service.save(owner, create());
+        var a = new NodeSpec(UUID.randomUUID(), first.id(), "A", "ss", json.createObjectNode(), null);
+        var b = new NodeSpec(UUID.randomUUID(), first.id(), "B", "ss", json.createObjectNode(), null);
+        transaction.executeWithoutResult(tx -> nodes.replaceSource(owner, first.id(), 1, List.of(a, b)));
+        assertThat(json.valueToTree(service.list(owner)).get(0).path("nodeCount").asInt(-1)).isEqualTo(2);
+        transaction.executeWithoutResult(tx -> nodes.replaceSource(owner, first.id(), 2, List.of(a)));
+        var counts = json.valueToTree(service.list(owner));
+        assertThat(counts.get(0).path("nodeCount").asInt(-1)).isEqualTo(1);
+        assertThat(counts.get(1).path("nodeCount").asInt(-1)).isZero();
+        assertThat(counts.get(1).path("id").asString()).isEqualTo(second.id().toString());
+    }
+
     private SourceCommand create() {
         return new SourceCommand(null, null, "Fixture subscription", true, null, InputFormat.AUTO,
                 "https://example.com/sub?secret-query=fixture-password", Map.of("Authorization", "Bearer fixture-password"), "fixture-UA", "");

@@ -8,8 +8,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     { path: '/', redirect: '/profiles' }, { path: '/login', component: LoginPage },
     { path: '/profiles', component: ProfileHome },
     { path: '/profiles/:id', component: FeaturePage, props: { title: '代理组' } },
-    { path: '/sources', component: FeaturePage, props: { title: '上游订阅' } },
-    { path: '/nodes', component: FeaturePage, props: { title: '统一节点池' } },
+    { path: '/sources', component: () => import('./features/sources/SourcesView.vue') },
+    { path: '/nodes', component: () => import('./features/sources/NodePoolPage.vue') },
     { path: '/import', component: FeaturePage, props: { title: '导入完整配置' } },
     { path: '/:pathMatch(.*)*', redirect: '/profiles' },
   ] })

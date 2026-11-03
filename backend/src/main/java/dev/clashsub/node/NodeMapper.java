@@ -5,6 +5,9 @@ import org.apache.ibatis.annotations.*;
 
 @Mapper
 public interface NodeMapper {
+    record SourceCount(String sourceId, long nodeCount) { }
+    @Select("SELECT source_id,COUNT(*) AS node_count FROM node WHERE owner_id=#{owner} AND is_active=1 AND source_id IS NOT NULL GROUP BY source_id")
+    List<SourceCount> countsBySource(String owner);
     String COLUMNS = "id,owner_id,source_id,name_hash,original_name,protocol,region,snapshot_version,connection_cipher";
     String FILTER = " WHERE owner_id=#{owner} AND is_active=1<if test='source != null'> AND source_id=#{source}</if><if test='protocol != null'> AND protocol=#{protocol}</if><if test='region != null'> AND region=#{region}</if><if test='name != null'> AND LOWER(original_name) LIKE #{name} ESCAPE '='</if>";
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND id=#{id} AND is_active=1")
