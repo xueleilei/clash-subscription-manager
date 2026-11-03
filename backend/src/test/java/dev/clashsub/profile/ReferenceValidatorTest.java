@@ -44,6 +44,12 @@ class ReferenceValidatorTest {
                 List.of(new RuleDefinition(UUID.randomUUID(), new RuleExpression("MATCH", "", null), TargetRef.group(id), List.of(), "", List.of())), List.of(), List.of());
         assertThat(validator.validate(doc, empty).valid()).isTrue();
     }
+    @Test void resolvedReferencesCannotSmuggleExtraTextToBypassDuplicateChecks() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new TargetRef(TargetRef.Kind.NODE, UUID.randomUUID(), "extra"))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new TargetRef(TargetRef.Kind.DIRECT, null, "extra"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
     private GroupDefinition group(UUID id, String name, TargetRef... members) {
         return new GroupDefinition(id, name, "select", List.of(members), json.createObjectNode());

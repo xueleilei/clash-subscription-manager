@@ -235,17 +235,17 @@
 
 **Interfaces:** `ProfileCompiler.compile(ProfileDocument definition, NodeCatalog catalog, Map<UUID, Long> sourceVersions): CompileResult`；成功含 CompiledProfile，失败含 Diagnostic。`DependencyResolver.resolve(ProfileDocument, NodeCatalog): UsedDependencies`；`OutputNameAllocator.allocate(ProfileDocument, UsedDependencies): OutputNames`。消费任务 7、8 校验；本层不访问 DB/网络。
 
-- [ ] 写红灯：同名跨源节点同时输出；未使用节点不输出；全部定义组、嵌套组、规则直连节点、dialer-proxy 依赖纳入闭包；引用环/丢失链式依赖失败；空组 REJECT；同输入输出字节一致；基础 YAML 的其他字段保持。
+- [x] 写红灯：同名跨源节点同时输出；未使用节点不输出；全部定义组、嵌套组、规则直连节点、dialer-proxy 依赖纳入闭包；引用环/丢失链式依赖失败；空组 REJECT；同输入输出字节一致；基础 YAML 的其他字段保持。
   ~~~java
   assertThat(compiled.usedNodeIds()).containsExactlyInAnyOrder(nodeA, nodeB, dialerNode);
   assertThat(parsedGroup("空组").proxies()).containsExactly("REJECT");
   assertThat(compile(input).yaml()).isEqualTo(compile(input).yaml());
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=ProfileCompilerTest test`，确认失败。
-- [ ] 节点输出名固定为原名＋分隔符＋UUID 的无 padding base64url（不受排序/来源显示名变更影响）；组保留用户名称，名称冲突明确阻断，不任意绑定同名对象。按文档顺序输出组/规则，节点按内部 ID 稳定排序；链式引用通过 ID 改写。空组输出 `proxies: [REJECT]`；设置 `empty-fallback: REJECT`，在固定内核验证实际行为。动态 include-all/use 等与手工成员冲突的能力列为不支持诊断。
-- [ ] 编译只合入管理器拥有的字段；provider path 生成方案/规则集 ID 的相对隔离路径，规则集实际下载仍由客户端处理。输出 YAML 使用安全序列化，名称中特殊字符不能注入新键/规则。
-- [ ] 单元命令及 `./scripts/mvn.sh -Dit.test=ProfileCompilerIT verify` 通过；后者调用真实 Mihomo 并覆盖 select/url-test 两种空组、规则集与 geodata 配置。
-- [ ] 提交：`feat: compile deterministic dependency-complete mihomo profiles`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=ProfileCompilerTest test`，确认失败。
+- [x] 节点输出名固定为原名＋分隔符＋UUID 的无 padding base64url（不受排序/来源显示名变更影响）；组保留用户名称，名称冲突明确阻断，不任意绑定同名对象。按文档顺序输出组/规则，节点按内部 ID 稳定排序；链式引用通过 ID 改写。空组输出 `proxies: [REJECT]`；设置 `empty-fallback: REJECT`，在固定内核验证实际行为。动态 include-all/use 等与手工成员冲突的能力列为不支持诊断。
+- [x] 编译只合入管理器拥有的字段；provider path 生成方案/规则集 ID 的相对隔离路径，规则集实际下载仍由客户端处理。输出 YAML 使用安全序列化，名称中特殊字符不能注入新键/规则。
+- [x] 单元命令及 `./scripts/mvn.sh -Dit.test=ProfileCompilerIT verify` 通过；后者调用真实 Mihomo 并覆盖 select/url-test 两种空组、规则集与 geodata 配置。
+- [x] 提交：`feat: compile deterministic dependency-complete mihomo profiles`。
 
 ## Task 10: 校验发布、不可变产物与订阅 Token
 

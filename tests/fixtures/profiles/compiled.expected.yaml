@@ -1,0 +1,23 @@
+mode: rule
+mixed-port: 7890
+ipv6: false
+proxies: []
+proxy-groups:
+- name: Empty
+  type: url-test
+  proxies:
+  - REJECT
+  empty-fallback: REJECT
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+rule-providers:
+  Domains:
+    type: http
+    url: https://example.invalid/rules.yaml
+    behavior: domain
+    format: yaml
+    interval: 3600
+    path: ./rules/10000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001.yaml
+rules:
+- RULE-SET,Domains,Empty
+- MATCH,REJECT

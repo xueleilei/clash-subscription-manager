@@ -6,7 +6,7 @@ public record TargetRef(Kind kind, UUID id, String unresolvedName) {
     public enum Kind { NODE, GROUP, DIRECT, REJECT, UNRESOLVED }
     public TargetRef {
         if (kind == null || ((kind == Kind.NODE || kind == Kind.GROUP) != (id != null))
-                || (kind == Kind.UNRESOLVED && unresolvedName == null)) {
+                || ((kind == Kind.UNRESOLVED) != (unresolvedName != null))) {
             throw new IllegalArgumentException("Invalid target reference");
         }
     }
