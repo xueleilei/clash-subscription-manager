@@ -272,20 +272,20 @@
 
 **Interfaces:** `RefreshService.refresh(UUID ownerId, UUID sourceId, UUID attemptId): RefreshOutcome`；`ReferenceReconciler.reconcile(ProfileDocument definition, Set<UUID> removedNodeIds): ReconcileResult`；`RefreshCommitter.commit(RefreshProposal proposal): CommitResult`；`EmptyDecisionService.decide(UUID ownerId, UUID decisionId, EmptyChoice choice): DecisionResult`，choice=KEEP/CLEAR。
 
-- [ ] 写失败保留/成功变更的红灯：改参数保留 ID/成员；改名删旧添新但不自动入组；任何节点解析/内核校验失败不提交；多个方案发布全部成功才切换；在事务中注入失败，所有指针/节点保持原状。
+- [x] 写失败保留/成功变更的红灯：改参数保留 ID/成员；改名删旧添新但不自动入组；任何节点解析/内核校验失败不提交；多个方案发布全部成功才切换；在事务中注入失败，所有指针/节点保持原状。
   ~~~java
   assertThat(after.publishedRules()).doesNotContain(unpublishedDraftRule);
   assertThat(after.directNodeRule().target()).isEqualTo(REJECT);
   assertThat(after.directNodeRule().expression()).isEqualTo(before.directNodeRule().expression());
   assertThat(after.groupMembers()).doesNotContain(removedNode);
   ~~~
-- [ ] 写 EmptyDecisionIT：合法空数组只建待确认；KEEP 保持；CLEAR 清理并编译；未选择不动；重复空合并；恢复/来源配置改变后旧确认=409；清空导致任一编译失败也不部分清空。
-- [ ] 写 RefreshRaceIT（RF3/RF4）：用 latch 交错而非 sleep，覆盖计算期间新增方案引用、保存草稿、规则先改目标、两个来源更新同一方案、发布同时发生。断言无漏清理/丢更新，草稿已改有效目标保留，已发布旧目标单独回退 REJECT。
-- [ ] 运行 `./scripts/mvn.sh -Dit.test=RefreshTransactionIT,EmptyDecisionIT,RefreshRaceIT verify`，确认红灯。
-- [ ] 实现下载/解析/全部候选节点检查在事务外，差异只对成功候选计算。先基于旧发布定义 prepare 新 release，再单独 reconcile 当前草稿；不使用草稿作为自动发布模板。节点移除作 tombstone，恢复只恢复节点数据、不恢复成员或规则目标。无内容变化记录成功尝试，不制造重复 release。
-- [ ] V5 建 refresh_attempt、pending_empty_decision；绑定 configVersion、有效 snapshotVersion 和候选摘要；成功更新/来源编辑使旧确认过期。owner revision 防止扫描后新增引用，来源/方案 CAS 防止覆盖，最多 3 次重算。依赖丢失且不能安全编译（如 dialer-proxy）整次刷新失败，绝不删除链式参数来直连。
-- [ ] 同命令通过，并断言网络/内核耗时阶段没有持有写事务；所有被影响的发布产物、草稿自动补丁、有效快照指针在同一提交中生效。
-- [ ] 提交：`feat: refresh sources atomically without leaking draft edits`。
+- [x] 写 EmptyDecisionIT：合法空数组只建待确认；KEEP 保持；CLEAR 清理并编译；未选择不动；重复空合并；恢复/来源配置改变后旧确认=409；清空导致任一编译失败也不部分清空。
+- [x] 写 RefreshRaceIT（RF3/RF4）：用 latch 交错而非 sleep，覆盖计算期间新增方案引用、保存草稿、规则先改目标、两个来源更新同一方案、发布同时发生。断言无漏清理/丢更新，草稿已改有效目标保留，已发布旧目标单独回退 REJECT。
+- [x] 运行 `./scripts/mvn.sh -Dit.test=RefreshTransactionIT,EmptyDecisionIT,RefreshRaceIT verify`，确认红灯。
+- [x] 实现下载/解析/全部候选节点检查在事务外，差异只对成功候选计算。先基于旧发布定义 prepare 新 release，再单独 reconcile 当前草稿；不使用草稿作为自动发布模板。节点移除作 tombstone，恢复只恢复节点数据、不恢复成员或规则目标。无内容变化记录成功尝试，不制造重复 release。
+- [x] V5 建 refresh_attempt、pending_empty_decision；绑定 configVersion、有效 snapshotVersion 和候选摘要；成功更新/来源编辑使旧确认过期。owner revision 防止扫描后新增引用，来源/方案 CAS 防止覆盖，最多 3 次重算。依赖丢失且不能安全编译（如 dialer-proxy）整次刷新失败，绝不删除链式参数来直连。
+- [x] 同命令通过，并断言网络/内核耗时阶段没有持有写事务；所有被影响的发布产物、草稿自动补丁、有效快照指针在同一提交中生效。
+- [x] 提交：`feat: refresh sources atomically without leaking draft edits`。
 
 ## Task 12: 持久调度、任务 API 与变更记录
 

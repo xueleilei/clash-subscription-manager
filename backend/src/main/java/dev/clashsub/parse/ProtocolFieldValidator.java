@@ -103,6 +103,9 @@ public class ProtocolFieldValidator {
         if (protocol.equals("hysteria2")) {
             enumValue(node, "obfs", Set.of("salamander", ""), path, errors, false);
             if (node.path("obfs").asString("").equals("salamander")) { required(node, "obfs-password", path, errors); }
+            for (String key : List.of("up", "down")) {
+                if (node.has(key) && !validBandwidth(node.path(key).asString(""))) { bad(errors, path + "." + key, "带宽必须是非负整数，可附 Mbps、Kbps、Gbps、Tbps 或 Bps 单位"); }
+            }
         }
         enumValue(node, "congestion-controller", Set.of("cubic", "new_reno", "bbr"), path, errors, false);
         enumValue(node, "udp-relay-mode", Set.of("native", "quic"), path, errors, false);
@@ -172,6 +175,19 @@ public class ProtocolFieldValidator {
             }
             return true;
         } catch (NumberFormatException exception) { return false; }
+    }
+    /** Match pinned Mihomo StringToBps, but reject its invalid/overflow-to-zero fallback. */
+    private boolean validBandwidth(String value) {
+        if (value.isEmpty()) { return true; }
+        String digits; int power;
+        if (value.matches("[0-9]+")) { digits = value; power = 2; }
+        else {
+            var match = java.util.regex.Pattern.compile("^([0-9]+)\\s*([KMGT]?)[Bb]ps$").matcher(value);
+            if (!match.matches()) { return false; }
+            digits = match.group(1); power = switch (match.group(2)) { case "K" -> 1; case "M" -> 2; case "G" -> 3; case "T" -> 4; default -> 0; };
+        }
+        if (digits.length() > 20) { return false; }
+        return new java.math.BigInteger(digits).multiply(java.math.BigInteger.valueOf(1000).pow(power)).bitLength() <= 64;
     }
     private void enumValue(JsonNode node, String field, Set<String> values, String path, List<Diagnostic> errors, boolean required) {
         if ((required || node.has(field)) && !values.contains(node.path(field).asString(""))) { bad(errors, path + "." + field, "不支持的字段选项"); }

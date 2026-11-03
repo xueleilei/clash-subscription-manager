@@ -27,10 +27,21 @@ public class SourceRepository {
     @Transactional(propagation = Propagation.MANDATORY)
     public void update(SourceDO row, long expected) {
         if (mapper.updateConfig(row, expected) != 1) { throw ApiException.conflict(); }
+        mapper.expireDecisions(row.ownerId(), row.id());
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void advanceSnapshot(UUID owner, UUID source, long config, long previous, long next, Instant now) {
         if (next != previous + 1 || mapper.advanceSnapshot(owner.toString(), source.toString(), config, previous, next, now) != 1) { throw ApiException.conflict(); }
+        mapper.expireDecisions(owner.toString(), source.toString());
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void unchangedSuccess(UUID owner, UUID source, long config, long snapshot, Instant now) {
+        if (mapper.unchangedSuccess(owner.toString(), source.toString(), config, snapshot, now) != 1) { throw ApiException.conflict(); }
+        mapper.expireDecisions(owner.toString(), source.toString());
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void attemptStatus(UUID owner, UUID source, long config, long snapshot, String status, String error, Instant now) {
+        mapper.attemptStatus(owner.toString(), source.toString(), config, snapshot, status, error, now);
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void saveSnapshot(UUID owner, UUID source, long version, StoredSourceSnapshot payload, Instant now) {

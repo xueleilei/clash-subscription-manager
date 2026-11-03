@@ -34,6 +34,10 @@ public class NodeRepository {
         for (var row : mapper.all(owner.toString())) { var node = decode(row); values.put(node.id(), node); }
         return new NodeCatalog(values);
     }
+    public List<NodeSpec> sourceHistory(UUID owner, UUID source) {
+        sources.require(owner, source);
+        return mapper.source(owner.toString(), source.toString()).stream().map(this::decode).toList();
+    }
     public Page<NodeSummary> list(UUID owner, NodeQuery query) {
         if (query.page() < 1 || query.page() > 100_000 || query.size() < 1 || query.size() > 200) { throw ApiException.invalid("分页参数不正确"); }
         String source = query.sourceId() == null ? null : query.sourceId().toString();
@@ -64,7 +68,7 @@ public class NodeRepository {
             var row = new NodeDO(node.id().toString(), owner.toString(), source.toString(), key.nameHash(), node.originalName(),
                     node.protocol(), RegionHint.fromName(node.originalName()), snapshot, documents.write(node, context(owner.toString(), node.id().toString())));
             if (previous == null) { mapper.insert(row); }
-            else if (!decode(previous).equals(node)) { if (mapper.update(row) != 1) { throw ApiException.conflict(); } }
+            else if (mapper.update(row) != 1) { throw ApiException.conflict(); }
         }
         for (var previous : existing) {
             if (!ids.contains(UUID.fromString(previous.id()))) { mapper.delete(owner.toString(), source.toString(), previous.id()); }

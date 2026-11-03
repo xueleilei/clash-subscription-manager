@@ -72,5 +72,15 @@ class ClashYamlParserTest {
         assertThat(RegionHint.fromName("Ordinary node")).isEqualTo("UNKNOWN");
     }
 
+    @Test void invalidHysteriaBandwidthCannotSilentlyBecomeAutomaticCongestionControl() {
+        String node = "proxies: [{name: x, type: hysteria2, server: example.invalid, port: 443, password: fixture, up: '%s'}]";
+        assertThat(parse(node.formatted("invalid-rate")).committable()).isFalse();
+        assertThat(parse(node.formatted("30 Mbps")).committable()).isTrue();
+        assertThat(parse(node.formatted("0")).committable()).isTrue();
+        assertThat(parse(node.formatted("8 KBps")).committable()).isTrue();
+        assertThat(parse(node.formatted("99999999999999999999 Tbps")).committable()).isFalse();
+        assertThat(parse(node.formatted("10mbps")).committable()).isFalse();
+    }
+
     private ParseResult parse(String text) { return parser.parse(text.getBytes(StandardCharsets.UTF_8), InputFormat.AUTO); }
 }

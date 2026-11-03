@@ -62,3 +62,6 @@ VLESS/VMess 的 gRPC 仅支持 gun 模式；WS 支持 ed/eh 早期数据选项�
 Trojan 与 TUIC 的分享参数按上表支持的通用客户端形式映射，协议字段依据
 [Trojan 配置](https://trojan-gfw.github.io/trojan/config)、
 [TUIC 协议](https://github.com/tuic-protocol/tuic/blob/master/SPEC.md)与固定 Mihomo 模式；不声称存在统一 TUIC URI 标准。
+## Hysteria2 带宽边界
+
+`up` / `down` 按固定内核的 [StringToBps](https://github.com/MetaCubeX/mihomo/blob/v1.19.33/common/utils/mbps.go) 接受整数（默认 Mbps）或整数加 `bps`、`Bps` 及大写 K/M/G/T 前缀。空字符串和零沿用内核默认行为；非法文本和数值溢出由管理器拒绝，避免被内核默认为零。
