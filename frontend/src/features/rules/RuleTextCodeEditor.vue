@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { markRaw, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { basicSetup, EditorView } from 'codemirror'
+import { clashRuleLanguage } from './clashRuleLanguage'
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const host = shallowRef<HTMLDivElement | null>(null)
 let editor: EditorView | null = null, applyingExternal = false
 onMounted(() => {
  editor = markRaw(new EditorView({ parent: host.value!, doc: props.modelValue, extensions: [
-  basicSetup,
+  basicSetup, clashRuleLanguage(),
   EditorView.contentAttributes.of({ 'aria-label': '完整规则文本' }),
   EditorView.updateListener.of(update => { if (update.docChanged && !applyingExternal) emit('update:modelValue', update.state.doc.toString()) }),
   EditorView.theme({
