@@ -5,7 +5,9 @@ import dev.clashsub.common.OwnerRevisionGuard;
 import dev.clashsub.common.ValidationReport;
 import dev.clashsub.node.NodeRepository;
 import dev.clashsub.parse.SafeYaml;
-import dev.clashsub.parse.YamlInputException;
+import dev.clashsub.rule.BaseSettingsValidator;
+import dev.clashsub.rule.ProviderValidator;
+import dev.clashsub.rule.RuleValidator;
 import dev.clashsub.rule.RuleDefinition;
 import dev.clashsub.rule.RuleExpression;
 import java.util.HashSet;
@@ -22,9 +24,13 @@ public class ProfileService {
     private final NodeRepository nodes;
     private final OwnerRevisionGuard revisions;
     private final ReferenceValidator references;
-    private final SafeYaml yaml;
-    public ProfileService(ProfileRepository repository, NodeRepository nodes, OwnerRevisionGuard revisions, ReferenceValidator references, SafeYaml yaml) {
-        this.repository = repository; this.nodes = nodes; this.revisions = revisions; this.references = references; this.yaml = yaml;
+    private final BaseSettingsValidator baseSettings;
+    private final ProviderValidator providers;
+    private final RuleValidator rules;
+    public ProfileService(ProfileRepository repository, NodeRepository nodes, OwnerRevisionGuard revisions, ReferenceValidator references,
+            BaseSettingsValidator baseSettings, ProviderValidator providers, RuleValidator rules) {
+        this.repository = repository; this.nodes = nodes; this.revisions = revisions; this.references = references;
+        this.baseSettings = baseSettings; this.providers = providers; this.rules = rules;
     }
 
     @Transactional public DraftSnapshot create(UUID owner, String name) {
@@ -81,10 +87,9 @@ public class ProfileService {
 
     @Transactional(readOnly = true) public ValidationReport diagnostics(UUID owner, UUID id) { return diagnostics(owner, repository.draft(owner, id).document()); }
     public ValidationReport diagnostics(UUID owner, ProfileDocument document) {
-        var report = references.validate(document, nodes.catalog(owner));
-        try { yaml.load(document.baseYaml()); }
-        catch (YamlInputException exception) { report = report.merge(ValidationReport.of(List.of(exception.diagnostic()))); }
-        return report.merge(ValidationReport.of(document.importIssues()));
+        var catalog = nodes.catalog(owner);
+        return references.validate(document, catalog).merge(baseSettings.validate(document.baseYaml(), ReferenceIndex.of(document, catalog)))
+                .merge(providers.validate(document.providers())).merge(rules.validate(document.rules())).merge(ValidationReport.of(document.importIssues()));
     }
 
     @Transactional public ProfileView rename(UUID owner, UUID id, long expected, String name) {

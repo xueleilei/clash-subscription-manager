@@ -17,10 +17,15 @@ public record ReferenceIndex(Map<String, List<TargetRef>> targets, Map<String, U
         var targets = new LinkedHashMap<String, List<TargetRef>>();
         targets.put("DIRECT", new ArrayList<>(List.of(TargetRef.direct())));
         targets.put("REJECT", new ArrayList<>(List.of(TargetRef.reject())));
-        document.groups().forEach(group -> targets.computeIfAbsent(group.name(), k -> new ArrayList<>()).add(TargetRef.group(group.id())));
+        document.groups().stream().filter(group -> group.name() != null && !group.name().isBlank() && group.id() != null)
+                .forEach(group -> targets.computeIfAbsent(group.name(), k -> new ArrayList<>()).add(TargetRef.group(group.id())));
         catalog.nodes().values().forEach(node -> targets.computeIfAbsent(node.originalName(), k -> new ArrayList<>()).add(TargetRef.node(node.id())));
         var providers = new LinkedHashMap<String, UUID>();
-        document.providers().forEach(provider -> providers.put(provider.name(), provider.id()));
+        var ambiguous = new java.util.HashSet<String>();
+        document.providers().stream().filter(provider -> provider.name() != null && !provider.name().isBlank() && provider.id() != null).forEach(provider -> {
+            if (providers.putIfAbsent(provider.name(), provider.id()) != null) { ambiguous.add(provider.name()); }
+        });
+        ambiguous.forEach(providers::remove);
         return new ReferenceIndex(targets, providers);
     }
     public TargetRef resolve(String name) {

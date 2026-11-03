@@ -217,17 +217,17 @@
 
 **Interfaces:** `RuleParser.parse(String text, ReferenceIndex references): RuleParseResult`（有序 RuleDefinition＋逐行诊断）；`RuleImportService.preview(DraftSnapshot draft, String text, MatchPolicy policy): RuleImportPreview`；`ProviderValidator.validate(List<ProviderDefinition>): ValidationReport`；`BaseSettingsValidator.validate(String yaml, ReferenceIndex refs): ValidationReport`。POST `/api/v1/profiles/{id}/rule-import/preview` 不写库；应用预览走任务 7 的版本化 save。
 
-- [ ] 写红灯：常用 9 类及 RULE-SET、no-resolve、带括号 AND/OR/NOT 和引号中的逗号；错误行不部分应用；MATCH 只能最后一个，替换需显式 policy；规则直接节点目标成为 TargetRef。
+- [x] 写红灯：常用 9 类及 RULE-SET、no-resolve、带括号 AND/OR/NOT 和引号中的逗号；错误行不部分应用；MATCH 只能最后一个，替换需显式 policy；规则直接节点目标成为 TargetRef。
   ~~~java
   assertThat(preview.rules().getLast().expression()).isEqualTo("MATCH");
   assertThat(previewWithBadLine.applicable()).isFalse();
   assertThat(validateBase("proxies: []").errors()).extracting(Diagnostic::code).contains("MANAGED_FIELD");
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=RuleParserTest,RuleImportTest,BaseSettingsValidatorTest test`，确认失败。
-- [ ] 实现词法分隔与外层目标解析，AST 只作为解析工具，持久化保留原表达式、内部目标、附加参数和原文。未理解的高级表达式保留为带诊断草稿，不能通过发布。provider 支持 HTTP、domain/ipcidr/classical：yaml/text 合法，mrs 只用于内核支持的行为；interval 单位秒且为正值；引用用 provider ID，输出时转名。
-- [ ] BaseSettingsValidator 拒绝 proxies/proxy-groups/rules/rule-providers/proxy-providers 托管字段；检测 sub-rules、DNS 策略等高级字段中的引用，无法安全理解/改写时阻断发布并定位。测试高级引用遇到组改名不能输出旧名。原 YAML 未修改字段保持语义。
-- [ ] 同命令通过，追加含 2,124 条规则的人工生成夹具检查顺序与导入原子性，不复制私有原文。
-- [ ] 提交：`feat: validate ordered rules providers and base settings`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=RuleParserTest,RuleImportTest,BaseSettingsValidatorTest test`，确认失败。
+- [x] 实现词法分隔与外层目标解析，AST 只作为解析工具，持久化保留原表达式、内部目标、附加参数和原文。未理解的高级表达式保留为带诊断草稿，不能通过发布。provider 支持 HTTP、domain/ipcidr/classical：yaml/text 合法，mrs 只用于内核支持的行为；interval 单位秒且为正值；引用用 provider ID，输出时转名。
+- [x] BaseSettingsValidator 拒绝 proxies/proxy-groups/rules/rule-providers/proxy-providers 托管字段；检测 sub-rules、DNS 策略等高级字段中的引用，无法安全理解/改写时阻断发布并定位。测试高级引用遇到组改名不能输出旧名。原 YAML 未修改字段保持语义。
+- [x] 同命令通过，追加含 2,124 条规则的人工生成夹具检查顺序与导入原子性，不复制私有原文。
+- [x] 提交：`feat: validate ordered rules providers and base settings`。
 
 ## Task 9: 确定性的配置编译器
 

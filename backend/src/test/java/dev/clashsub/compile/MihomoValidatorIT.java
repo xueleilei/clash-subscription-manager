@@ -79,6 +79,10 @@ class MihomoValidatorIT {
         assertThat(validator().validate("geo-auto-update: [true]\nrules: ['MATCH,REJECT']\n").valid()).isFalse();
         assertThat(validator().validate("rule-providers: {x: {type: http, behavior: domain, url: 'https://example.com/rules', interval: 10, header: invalid}}\nrules: ['MATCH,REJECT']\n").valid()).isFalse();
     }
+    @Test void zeroProviderSizeLimitMatchesThePinnedCoreSemantics() {
+        String config = "rule-providers: {fixture: {type: http, behavior: domain, format: yaml, url: 'https://example.invalid/rules', interval: 3600, size-limit: 0}}\nrules: ['RULE-SET,fixture,REJECT', 'MATCH,REJECT']\n";
+        assertThat(validator().validate(config).errors()).isEmpty();
+    }
 
     @Test void killsTimedOutProcessAndBoundsOutput() throws Exception {
         var hanging = temp.resolve("hanging-core");

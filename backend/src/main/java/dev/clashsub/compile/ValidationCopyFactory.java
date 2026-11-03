@@ -121,7 +121,7 @@ public class ValidationCopyFactory {
             if (provider.has(field) && !provider.path(field).isString()) { return false; }
         }
         if (provider.has("size-limit") && (!provider.path("size-limit").isIntegralNumber()
-                || provider.path("size-limit").asLong(0) <= 0)) { return false; }
+                || provider.path("size-limit").asLong(-1) < 0)) { return false; }
         if (provider.has("header")) {
             var headers = provider.path("header");
             if (!headers.isObject()) { return false; }
