@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { mount, DOMWrapper } from '@vue/test-utils'
+import { mount, DOMWrapper, flushPromises } from '@vue/test-utils'
 import { defineComponent, h, shallowRef } from 'vue'
+import { userEvent } from 'vitest/browser'
 import RulesView from './RulesView.vue'
 import { documentFixture, target } from '../../test/fixtures'
 import { button, mockApi, reply } from '../../test/http'
@@ -62,4 +63,69 @@ test('provider invalid mrs/classical combination is blocked and a used provider 
  await set('规则集格式','yaml'); button('应用规则集').click(); await expect.poll(()=>current.value.providers.length).toBe(1)
  const provider=current.value.providers[0]!; current.value={...current.value,rules:[{...rule('used'),expression:{type:'RULE-SET',value:provider.name,providerId:provider.id}},...current.value.rules]}
  await expect.poll(()=>button(`删除规则集 ${provider.name}`).disabled).toBe(true)
+})
+
+test('full text editor uses the working copy and replaces rules only after validation and apply', async () => {
+ const doc=documentFixture(); doc.rules=[rule('old','unsaved.invalid'),{...doc.rules[0]!,target:target('REJECT')}]
+ const updated=[rule('new','edited.invalid'),doc.rules[1]!], calls:{path:string;body:Record<string,unknown>}[]=[]
+ mockApi((path,_method,body)=>{
+  calls.push({path,body})
+  if(path.endsWith('/rule-text'))return reply({expectedVersion:'1',text:'DOMAIN-SUFFIX,unsaved.invalid,DIRECT\nMATCH,REJECT\n',ruleCount:2,ownerRevision:'10'})
+  if(path.endsWith('/rule-text/preview'))return reply({applicable:true,expectedVersion:'1',rules:updated,importedRules:updated,report:{errors:[],warnings:[]}})
+  throw new Error('Unexpected configuration write')
+ })
+ const current=setup(doc), original=JSON.stringify(current.value)
+ expect([...document.querySelectorAll('button')].some(value=>value.textContent?.trim()==='文本编辑')).toBe(true)
+ button('文本编辑').click()
+ await expect.poll(()=>document.querySelector('[aria-label="完整规则文本"]')).not.toBeNull()
+ const editor=document.querySelector<HTMLElement>('[aria-label="完整规则文本"]')!
+ expect(editor.textContent).toContain('unsaved.invalid'); expect(calls[0]!.body.document).toEqual(doc)
+ await userEvent.click(editor); await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}')
+ await expect.poll(()=>document.querySelector('.cm-search')).not.toBeNull()
+ await userEvent.keyboard('{Escape}'); await flushPromises(); expect(editor.isConnected).toBe(true)
+ await userEvent.click(editor); await userEvent.keyboard('{ControlOrMeta>}a{/ControlOrMeta}DOMAIN-SUFFIX,edited.invalid,DIRECT{Enter}MATCH,REJECT')
+ expect(button('应用文本修改').disabled).toBe(true); expect(JSON.stringify(current.value)).toBe(original)
+ button('校验规则文本').click(); await expect.poll(()=>button('应用文本修改').disabled).toBe(false)
+ expect(calls.at(-1)!.body.text).toBe('DOMAIN-SUFFIX,edited.invalid,DIRECT\nMATCH,REJECT')
+ expect(calls.at(-1)!.body.ownerRevision).toBe('10')
+ expect(JSON.stringify(current.value)).toBe(original)
+ button('应用文本修改').click(); await expect.poll(()=>current.value.rules).toEqual(updated)
+ expect(current.value.groups).toEqual(doc.groups); expect(current.value.baseYaml).toEqual(doc.baseYaml)
+ expect(calls.map(call=>call.path)).toEqual(['/profiles/p1/rule-text','/profiles/p1/rule-text/preview'])
+})
+
+test('invalid full rule text stays editable and cancelling preserves all existing rules', async () => {
+ const issue:Diagnostic={severity:'ERROR',code:'RULE_SYNTAX',path:'rules[1]',line:2,column:1,message:'规则语法不正确'}
+ mockApi((path)=>path.endsWith('/rule-text')
+  ?reply({expectedVersion:'1',text:'MATCH,REJECT\n',ruleCount:1,ownerRevision:'10'})
+  :reply({applicable:false,expectedVersion:'1',rules:documentFixture().rules,importedRules:[],report:{errors:[issue],warnings:[]}}))
+ const current=setup(), original=JSON.stringify(current.value)
+ expect([...document.querySelectorAll('button')].some(value=>value.textContent?.trim()==='文本编辑')).toBe(true)
+ button('文本编辑').click(); await expect.poll(()=>document.querySelector('[aria-label="完整规则文本"]')).not.toBeNull()
+ const editor=document.querySelector<HTMLElement>('[aria-label="完整规则文本"]')!
+ await userEvent.click(editor); await userEvent.keyboard('{ControlOrMeta>}a{/ControlOrMeta}DOMAIN,ok.invalid,DIRECT{Enter}BROKEN{Enter}MATCH,REJECT')
+ button('校验规则文本').click(); await expect.poll(()=>document.body.textContent).toContain('第 2 行')
+ expect(button('应用文本修改').disabled).toBe(true); expect(editor.textContent).toContain('BROKEN')
+ button('取消文本编辑').click(); expect(JSON.stringify(current.value)).toBe(original)
+})
+
+test('late text validation cannot apply after further typing or a changed working copy', async () => {
+ const pending:((value:Response)=>void)[]=[]
+ const rules=[{...documentFixture().rules[0]!,target:target('DIRECT')}]
+ mockApi(path=>path.endsWith('/rule-text')
+  ?reply({expectedVersion:'1',text:'MATCH,REJECT\n',ruleCount:1,ownerRevision:'10'})
+  :new Promise<Response>(resolve=>{pending.push(resolve)}))
+ const current=setup()
+ button('文本编辑').click(); await expect.poll(()=>document.querySelector('[aria-label="完整规则文本"]')).not.toBeNull()
+ button('校验规则文本').click(); await expect.poll(()=>pending.length).toBe(1)
+ const editor=document.querySelector<HTMLElement>('[aria-label="完整规则文本"]')!
+ await userEvent.click(editor); await userEvent.keyboard('{ControlOrMeta>}a{/ControlOrMeta}MATCH,DIRECT')
+ pending[0]!(reply({applicable:true,expectedVersion:'1',rules,importedRules:rules,report:{errors:[],warnings:[]}}))
+ await flushPromises(); expect(button('应用文本修改').disabled).toBe(true)
+ button('校验规则文本').click(); await expect.poll(()=>pending.length).toBe(2)
+ pending[1]!(reply({applicable:true,expectedVersion:'1',rules,importedRules:rules,report:{errors:[],warnings:[]}}))
+ await expect.poll(()=>button('应用文本修改').disabled).toBe(false)
+ current.value={...current.value,baseYaml:'mode: rule\nport: 7893\n'}
+ await expect.poll(()=>button('应用文本修改').disabled).toBe(true)
+ expect(editor.textContent).toContain('MATCH,DIRECT'); expect(document.body.textContent).toContain('方案或节点来源已变化')
 })

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { mount, DOMWrapper } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
+import { userEvent } from 'vitest/browser'
 import App from '../../App.vue'
 import { createAppRouter } from '../../router'
 import { useSession } from './useSession'
@@ -18,6 +19,7 @@ async function prepare() {
   if (path === '/sources') return reply([])
   if (path.startsWith('/nodes?')) return reply({ items: nodesFixture(), total: 54, page: 1, size: 200 })
   if (path === '/profiles/p1/draft') return reply(draftFixture())
+  if (path === '/profiles/p1/rule-text') return reply({expectedVersion:draftFixture().version,text:'MATCH,REJECT\n',ruleCount:1,ownerRevision:'10'})
   throw new Error(`${method} ${path}`)
  })
  await useSession().resume(); const router = createAppRouter(createMemoryHistory()); await router.push('/profiles/p1'); await router.isReady()
@@ -55,4 +57,16 @@ test('reauthenticating as another owner clears unapplied editor state', async ()
  await expect.poll(() => state.router.currentRoute.value.path).toBe('/profiles')
  expect(document.querySelector('input[placeholder="例如：AI 服务"]')).toBeNull()
  expect(document.body.textContent).not.toContain('previous-owner-private-input')
+})
+
+test('same-owner reauthentication preserves unapplied full rule text', async () => {
+ const state=await prepare(); button('分流规则').click()
+ await expect.poll(()=>button('文本编辑')).toBeTruthy(); button('文本编辑').click()
+ await expect.poll(()=>document.querySelector('[aria-label="完整规则文本"]')).not.toBeNull()
+ const editor=document.querySelector<HTMLElement>('[aria-label="完整规则文本"]')!
+ await userEvent.click(editor); await userEvent.keyboard('{ControlOrMeta>}a{/ControlOrMeta}DOMAIN,unfinished.invalid,DIRECT{Enter}MATCH,REJECT')
+ await state.expire(); await authenticate()
+ await expect.poll(()=>document.querySelector('[aria-label="完整规则文本"]')?.textContent).toContain('unfinished.invalid')
+ expect(state.router.currentRoute.value.path).toBe('/profiles/p1')
+ expect(document.querySelector('[aria-label="完整规则文本"]')?.checkVisibility()).toBe(true)
 })
