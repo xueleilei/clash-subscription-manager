@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,6 +34,14 @@ public class NodeRepository {
         var row = mapper.find(owner.toString(), id.toString());
         if (row == null || row.sourceId() != null) { throw ApiException.missing(); }
         return row;
+    }
+    public Map<UUID, NodeDO> requireLocalBatch(UUID owner, Set<UUID> ids) {
+        if (ids.isEmpty()) { throw ApiException.invalid("请选择手动节点"); }
+        var rows = mapper.findLocalBatch(owner.toString(), ids.stream().map(UUID::toString).toList());
+        if (rows.size() != ids.size()) { throw ApiException.missing(); }
+        var result = new LinkedHashMap<UUID, NodeDO>();
+        rows.forEach(row -> result.put(UUID.fromString(row.id()), row));
+        return Map.copyOf(result);
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void updateLocal(UUID owner, NodeSpec node, long expected) {

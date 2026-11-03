@@ -237,6 +237,127 @@ class LocalNodeIT extends RefreshTestSupport {
         throw new AssertionError("Profile not found");
     }
 
+    @Test void batchRemovalUpdatesEachDraftOnceAndKeepsPublishedLocalSnapshots() throws Exception {
+        UUID a = UUID.fromString(ok(send("POST", "/local-nodes", input("Bulk A", "fixture-a"))).path("id").asString());
+        UUID b = UUID.fromString(ok(send("POST", "/local-nodes", input("Bulk B", "fixture-b"))).path("id").asString());
+        UUID upstream = source("Remote fixture", yaml("Remote fixture"));
+        UUID remote = node(upstream, "Remote fixture").id();
+        UUID profile = profile("Bulk removal fixture", List.of(a, b, remote), a);
+        var before = snapshots.read(owner); String original = artifact(profile);
+        var response = send("POST", "/local-nodes/batch/removal", batchSelection(a, b));
+        var preview = ok(response);
+        assertThat(response.body()).doesNotContain("fixture-a", "fixture-b", "connection", "password");
+        assertThat(preview.path("nodes").size()).isEqualTo(2);
+        assertThat(preview.path("affectedProfiles").get(0).asString()).isEqualTo(profile.toString());
+        assertThat(preview.path("publishedProfiles").get(0).asString()).isEqualTo(profile.toString());
+        assertThat(preview.path("dependentNodes").isEmpty()).isTrue();
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        var deleted = ok(send("DELETE", "/local-nodes/batch", batchRemovalCommand(preview)));
+        assertThat(deleted.path("ids").size()).isEqualTo(2);
+        var draft = snapshots.read(owner).profiles().get(profile).draft();
+        assertThat(draft.version()).isEqualTo(before.profiles().get(profile).draft().version() + 1);
+        assertThat(draft.document().groups().getFirst().members()).containsExactly(TargetRef.node(remote));
+        assertThat(draft.document().rules().getFirst().target()).isEqualTo(TargetRef.reject());
+        assertThat(artifact(profile)).isEqualTo(original);
+        respond(upstream, yaml("Remote fixture").replace("port: 443", "port: 444")); run(upstream);
+        respond(upstream, yaml("Remote fixture").replace("port: 443", "port: 445")); run(upstream);
+        assertThat(artifact(profile)).contains("Bulk A", "Bulk B");
+        assertThat(ok(send("GET", "/nodes?localOnly=true", null)).path("total").asInt()).isZero();
+    }
+
+    @Test void batchRemovalAllowsSelectedChainsButBlocksUnselectedDependents() throws Exception {
+        UUID gateway = UUID.fromString(ok(send("POST", "/local-nodes", input("Gateway", "fixture-only"))).path("id").asString());
+        var leafInput = input("Leaf", "fixture-only"); leafInput.set("dialerRef", json.valueToTree(TargetRef.node(gateway)));
+        UUID leaf = UUID.fromString(ok(send("POST", "/local-nodes", leafInput)).path("id").asString());
+        var outerInput = input("Unselected", "fixture-only"); outerInput.set("dialerRef", json.valueToTree(TargetRef.node(leaf)));
+        UUID outer = UUID.fromString(ok(send("POST", "/local-nodes", outerInput)).path("id").asString());
+        var preview = ok(send("POST", "/local-nodes/batch/removal", batchSelection(gateway, leaf)));
+        assertThat(preview.path("dependentNodes").size()).isEqualTo(1);
+        assertThat(preview.path("dependentNodes").get(0).path("id").asString()).isEqualTo(outer.toString());
+        var before = snapshots.read(owner);
+        assertThat(send("DELETE", "/local-nodes/batch", batchRemovalCommand(preview)).statusCode()).isEqualTo(409);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        var all = ok(send("POST", "/local-nodes/batch/removal", batchSelection(gateway, leaf, outer)));
+        assertThat(all.path("dependentNodes").isEmpty()).isTrue();
+        ok(send("DELETE", "/local-nodes/batch", batchRemovalCommand(all)));
+        assertThat(nodes.catalog(owner).nodes()).isEmpty();
+    }
+
+    @Test void batchRemovalRejectsStaleVersionsAndAnyForeignOrUpstreamNode() throws Exception {
+        UUID a = UUID.fromString(ok(send("POST", "/local-nodes", input("Owned A", "fixture-only"))).path("id").asString());
+        UUID b = UUID.fromString(ok(send("POST", "/local-nodes", input("Owned B", "fixture-only"))).path("id").asString());
+        var stale = ok(send("POST", "/local-nodes/batch/removal", batchSelection(a, b)));
+        ok(send("PUT", "/local-nodes/" + a, input("Owned edited", "fixture-edited").put("expectedVersion", "0")));
+        var before = snapshots.read(owner);
+        assertThat(send("DELETE", "/local-nodes/batch", batchRemovalCommand(stale)).statusCode()).isEqualTo(409);
+        var fresh = ok(send("POST", "/local-nodes/batch/removal", batchSelection(a, b)));
+        var wrongVersion = batchRemovalCommand(fresh); ((ObjectNode) wrongVersion.path("nodes").get(0)).put("expectedVersion", "999");
+        assertThat(send("DELETE", "/local-nodes/batch", wrongVersion).statusCode()).isEqualTo(409);
+        assertThat(send("POST", "/local-nodes/batch/removal", batchSelection(a, a)).statusCode()).isEqualTo(400);
+        assertThat(send("POST", "/local-nodes/batch/removal", batchSelection()).statusCode()).isEqualTo(400);
+        assertThat(send("POST", "/local-nodes/batch/removal", batchSelection(a, UUID.randomUUID())).statusCode()).isEqualTo(404);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        UUID other = UUID.randomUUID(); jdbc.update("INSERT INTO app_user(id,username,password_hash) VALUES(?,?,?)", other.toString(), "bulk-other-" + other, "fixture-hash");
+        var foreign = localNodes.save(other, null, new LocalNodeCommand(null, "Foreign", "ss", (ObjectNode) input("Foreign", "fixture-only").path("connection"), null));
+        assertThat(send("POST", "/local-nodes/batch/removal", batchSelection(a, foreign.id())).statusCode()).isEqualTo(404);
+        UUID upstream = source("Upstream fixture", yaml("Upstream fixture"));
+        assertThat(send("POST", "/local-nodes/batch/removal", batchSelection(a, node(upstream, "Upstream fixture").id())).statusCode()).isEqualTo(404);
+        assertThat(nodes.requireLocal(owner, a).snapshotVersion()).isEqualTo(1);
+        assertThat(nodes.requireLocal(owner, b).snapshotVersion()).isZero();
+    }
+
+    private ObjectNode batchSelection(UUID... ids) {
+        var value = json.createObjectNode(); var selected = value.putArray("ids");
+        for (UUID id : ids) { selected.add(id.toString()); } return value;
+    }
+
+    @Test void batchRemovalRollsBackEarlierDeletesWhenALaterRowConflicts() throws Exception {
+        UUID a = UUID.fromString(ok(send("POST", "/local-nodes", input("Rollback A", "fixture-only"))).path("id").asString());
+        UUID b = UUID.fromString(ok(send("POST", "/local-nodes", input("Rollback B", "fixture-only"))).path("id").asString());
+        UUID profile = profile("Rollback fixture", List.of(a, b), a);
+        var before = snapshots.read(owner); String artifact = artifact(profile);
+        var ordered = List.of(a, b).stream().sorted().toList();
+        var versions = java.util.Map.of(ordered.getFirst(), 0L, ordered.getLast(), 999L);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> localCommitter.deleteBatch(before, versions,
+                java.util.Map.of(profile, before.profiles().get(profile).draft().document())))
+                .isInstanceOf(dev.clashsub.common.ApiException.class);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        assertThat(nodes.requireLocal(owner, a).snapshotVersion()).isZero();
+        assertThat(nodes.requireLocal(owner, b).snapshotVersion()).isZero();
+        assertThat(artifact(profile)).isEqualTo(artifact);
+    }
+
+    @Test void batchRemovalRejectsMalformedSelectionsWithoutChangingOwnedData() throws Exception {
+        UUID a = UUID.fromString(ok(send("POST", "/local-nodes", input("Owned", "fixture-only"))).path("id").asString());
+        UUID other = UUID.randomUUID(); jdbc.update("INSERT INTO app_user(id,username,password_hash) VALUES(?,?,?)", other.toString(), "bulk-other-" + other, "fixture-hash");
+        var foreign = localNodes.save(other, null, new LocalNodeCommand(null, "Foreign", "ss", (ObjectNode) input("Foreign", "fixture-only").path("connection"), null));
+        UUID upstream = source("Upstream fixture", yaml("Upstream fixture"));
+        UUID remote = node(upstream, "Upstream fixture").id();
+        var before = snapshots.read(owner);
+        var selected = batchSelection(a); selected.path("ids").asArray().addNull();
+        assertThat(send("POST", "/local-nodes/batch/removal", selected).statusCode()).isEqualTo(400);
+        var oversized = batchSelection();
+        for (int i = 0; i < 501; i++) { oversized.path("ids").asArray().add(UUID.randomUUID().toString()); }
+        assertThat(send("POST", "/local-nodes/batch/removal", oversized).statusCode()).isEqualTo(400);
+        assertThat(send("POST", "/local-nodes/batch/removal", json.createObjectNode()).statusCode()).isEqualTo(400);
+        var preview = ok(send("POST", "/local-nodes/batch/removal", batchSelection(a)));
+        for (UUID invalidId : List.of(a, foreign.id(), remote, UUID.randomUUID())) {
+            var command = batchRemovalCommand(preview);
+            command.path("nodes").asArray().addObject().put("id", invalidId.toString()).put("expectedVersion", "0");
+            assertThat(send("DELETE", "/local-nodes/batch", command).statusCode()).isEqualTo(invalidId.equals(a) ? 400 : 404);
+        }
+        var noVersion = batchRemovalCommand(preview); ((ObjectNode) noVersion.path("nodes").get(0)).remove("expectedVersion");
+        assertThat(send("DELETE", "/local-nodes/batch", noVersion).statusCode()).isEqualTo(400);
+        assertThat(send("DELETE", "/local-nodes/batch", json.createObjectNode()).statusCode()).isEqualTo(400);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+    }
+    private ObjectNode batchRemovalCommand(JsonNode preview) {
+        var value = json.createObjectNode().put("ownerRevision", preview.path("ownerRevision").asString());
+        var selected = value.putArray("nodes");
+        for (var node : preview.path("nodes")) { selected.addObject().put("id", node.path("id").asString()).put("expectedVersion", node.path("version").asString()); }
+        return value;
+    }
+
     private ObjectNode input(String name, String password) {
         var input = json.createObjectNode().put("name", name).put("protocol", "ss");
         input.putObject("connection").put("server", "fixture.example.invalid").put("port", 443).put("cipher", "aes-128-gcm").put("password", password);

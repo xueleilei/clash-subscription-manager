@@ -12,6 +12,8 @@ public interface NodeMapper {
     String FILTER = " WHERE owner_id=#{owner} AND is_active=1<if test='source != null'> AND source_id=#{source}</if><if test='localOnly'> AND source_id IS NULL</if><if test='protocol != null'> AND protocol=#{protocol}</if><if test='region != null'> AND region=#{region}</if><if test='name != null'> AND LOWER(original_name) LIKE #{name} ESCAPE '='</if>";
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND id=#{id} AND is_active=1")
     NodeDO find(@Param("owner") String owner, @Param("id") String id);
+    @Select("<script>SELECT id,owner_id,source_id,name_hash,original_name,protocol,region,snapshot_version,NULL AS connection_cipher FROM node WHERE owner_id=#{owner} AND source_id IS NULL AND is_active=1 AND id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> ORDER BY id</script>")
+    List<NodeDO> findLocalBatch(@Param("owner") String owner, @Param("ids") List<String> ids);
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND is_active=1 ORDER BY id")
     List<NodeDO> all(String owner);
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND source_id=#{source} ORDER BY id")

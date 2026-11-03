@@ -36,6 +36,14 @@ public class LocalNodeCommitter {
         for (var node : batch) { nodes.insertLocal(before.ownerId(), node); }
         return new LocalNodeBatchResult(batch.stream().map(NodeSpec::id).toList(), List.of());
     }
+    @Transactional public LocalNodeBatchResult deleteBatch(OwnerSnapshot before, Map<UUID, Long> versions, Map<UUID, ProfileDocument> drafts) {
+        revisions.compareAndIncrement(before.ownerId(), before.dataRevision());
+        for (var entry : new TreeMap<>(versions).entrySet()) {
+            nodes.deleteLocal(before.ownerId(), entry.getKey(), entry.getValue());
+        }
+        applyDrafts(before, drafts);
+        return new LocalNodeBatchResult(versions.keySet().stream().sorted().toList(), drafts.keySet().stream().sorted().toList());
+    }
     private void applyDrafts(OwnerSnapshot before, Map<UUID, ProfileDocument> drafts) {
         for (var entry : new TreeMap<>(drafts).entrySet()) {
             var previous = before.profiles().get(entry.getKey());

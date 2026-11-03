@@ -23,6 +23,7 @@ export interface LocalNodeBatchPreview { ownerRevision: Version; nodes: LocalNod
 export interface LocalNodeBatchCommand { text: string; ownerRevision: Version }
 export interface LocalNodeBatchResult { ids: Id[]; affectedProfiles: Id[] }
 export interface LocalNodeRemoval { id: Id; version: Version; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: Id[] }
+export interface LocalNodeBatchRemoval { nodes: { id: Id; name: string; version: Version }[]; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: { id: Id; name: string }[] }
 export interface Page<T> { items: T[]; total: number; page: number; size: number }
 export type InputFormat = 'AUTO' | 'CLASH_YAML' | 'URI_LIST' | 'BASE64'
 export interface SourceView { id: Id; name: string; configVersion: Version; snapshotVersion: Version; enabled: boolean; refreshIntervalSeconds: number; inputFormat: InputFormat; hostHint: string; syncStatus: string; nodeCount: number; lastAttemptTime: string | null; lastSuccessTime: string | null; nextRefreshTime: string | null; lastErrorCode: string | null; outboundProxy?: string }
