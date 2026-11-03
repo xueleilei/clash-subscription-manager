@@ -31,4 +31,6 @@ public interface SourceMapper {
             @Param("status") String status, @Param("error") String error, @Param("now") Instant now);
     @Update("UPDATE subscription_source SET sync_status='OK',last_attempt_time=#{now},last_success_time=#{now},last_error_code=NULL WHERE owner_id=#{owner} AND id=#{source} AND config_version=#{config} AND snapshot_version=#{snapshot}")
     int unchangedSuccess(@Param("owner") String owner, @Param("source") String source, @Param("config") long config, @Param("snapshot") long snapshot, @Param("now") Instant now);
+    @Delete("DELETE FROM subscription_source WHERE owner_id=#{owner} AND id=#{source} AND config_version=#{config} AND snapshot_version=#{snapshot}")
+    int remove(@Param("owner") String owner, @Param("source") String source, @Param("config") long config, @Param("snapshot") long snapshot);
 }

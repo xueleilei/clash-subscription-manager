@@ -30,4 +30,6 @@ public interface NodeMapper {
     List<NodeDO> oldTombstones(@Param("owner") String owner, @Param("cutoff") java.time.Instant cutoff);
     @Update("UPDATE node SET connection_cipher=#{cipher} WHERE owner_id=#{owner} AND id=#{id} AND is_active=0")
     int wipeTombstone(@Param("owner") String owner, @Param("id") String id, @Param("cipher") String cipher);
+    @Update("UPDATE node SET source_id=NULL,snapshot_version=0,connection_cipher=#{cipher} WHERE owner_id=#{owner} AND id=#{id} AND source_id=#{source} AND is_active=1")
+    int detach(@Param("owner") String owner, @Param("source") String source, @Param("id") String id, @Param("cipher") String cipher);
 }

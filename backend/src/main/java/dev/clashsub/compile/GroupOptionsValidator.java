@@ -9,8 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-final class GroupOptionsValidator {
-    ValidationReport validate(List<GroupDefinition> groups) {
+public final class GroupOptionsValidator {
+    public ValidationReport validate(List<GroupDefinition> groups) {
         var issues = new ArrayList<Diagnostic>();
         for (int i = 0; i < groups.size(); i++) {
             var group = groups.get(i);

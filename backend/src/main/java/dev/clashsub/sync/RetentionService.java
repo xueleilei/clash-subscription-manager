@@ -25,10 +25,11 @@ public class RetentionService {
     }
     public RetentionResult clean(Instant now) {
         var result = new RetentionResult(0, 0, 0, 0);
-        for (var owner : mapper.owners()) { result = result.plus(Objects.requireNonNull(transaction.execute(tx -> cleanOwner(UUID.fromString(owner), now.minus(Duration.ofDays(30)))))); }
+        for (var owner : mapper.owners()) { result = result.plus(Objects.requireNonNull(transaction.execute(tx -> cleanOwner(UUID.fromString(owner), now)))); }
         return result;
     }
-    private RetentionResult cleanOwner(UUID owner, Instant cutoff) {
+    private RetentionResult cleanOwner(UUID owner, Instant now) {
+        Instant cutoff = now.minus(Duration.ofDays(30));
         revisions.compareAndIncrement(owner, revisions.current(owner)); var protectedSnapshots = new HashSet<SnapshotKey>(); int removedReleases = 0;
         sources.list(owner).forEach(source -> protectedSnapshots.add(new SnapshotKey(source.id(), source.snapshotVersion())));
         state.pending(owner).forEach(decision -> protectedSnapshots.add(new SnapshotKey(decision.sourceId().toString(), Long.parseLong(decision.snapshotVersion()))));
@@ -46,6 +47,7 @@ public class RetentionService {
             if (!protectedSnapshots.contains(new SnapshotKey(row.sourceId(), row.snapshotVersion()))) { removedSnapshots += mapper.deleteSnapshot(owner.toString(), row.id()); }
         }
         int attempts = mapper.deleteAttempts(owner.toString(), cutoff); mapper.deleteResolvedDecisions(owner.toString(), cutoff);
+        mapper.deleteExpiredPreviews(owner.toString(), now);
         return new RetentionResult(attempts, removedReleases, removedSnapshots, nodes.cleanTombstoneSecrets(owner, cutoff));
     }
     private record SnapshotKey(String source, long version) { }

@@ -85,5 +85,15 @@ public class RefreshStateStore {
         }
     }
     private String attemptContext(String owner, String id) { return "refresh-attempt:" + owner + ":" + id; }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public List<UUID> cancelSource(UUID owner, UUID source) {
+        var cancelled = new java.util.ArrayList<UUID>();
+        for (var row : mapper.activeForSource(owner.toString(), source.toString())) {
+            var id = UUID.fromString(row.id());
+            var outcome = new RefreshOutcome(id, source, "CANCELLED", null, ChangeSummary.none(), ValidationReport.of(List.of(Diagnostic.warning("SOURCE_REMOVED", "source", "来源已删除，任务已取消"))));
+            if (mapper.cancel(owner.toString(), row.id(), documents.write(outcome, attemptContext(owner.toString(), row.id()))) == 1) { cancelled.add(id); }
+        }
+        return List.copyOf(cancelled);
+    }
     private String decisionContext(String owner, String id) { return "empty-decision:" + owner + ":" + id; }
 }

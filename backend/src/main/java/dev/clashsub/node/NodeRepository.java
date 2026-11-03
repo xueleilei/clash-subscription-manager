@@ -48,6 +48,21 @@ public class NodeRepository {
         }
         return count;
     }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void insertLocal(UUID owner, NodeSpec node) {
+        if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
+        var key = NodeIdentity.key(node.id(), node.originalName());
+        mapper.insert(new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
+                RegionHint.fromName(node.originalName()), 0, documents.write(node, context(owner.toString(), node.id().toString()))));
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void detachSource(UUID owner, UUID source) {
+        for (var node : catalog(owner).nodes().values()) {
+            if (!source.equals(node.sourceId())) { continue; }
+            var local = new NodeSpec(node.id(), null, node.originalName(), node.protocol(), node.connection(), node.dialerRef());
+            if (mapper.detach(owner.toString(), source.toString(), node.id().toString(), documents.write(local, context(owner.toString(), node.id().toString()))) != 1) { throw ApiException.conflict(); }
+        }
+    }
     public Page<NodeSummary> list(UUID owner, NodeQuery query) {
         if (query.page() < 1 || query.page() > 100_000 || query.size() < 1 || query.size() > 200) { throw ApiException.invalid("分页参数不正确"); }
         String source = query.sourceId() == null ? null : query.sourceId().toString();

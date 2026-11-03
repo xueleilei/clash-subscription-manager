@@ -60,4 +60,9 @@ public class SourceRepository {
         return documents.read(row.payloadCipher(), "source-snapshot:" + owner + ":" + row.id(), StoredSourceSnapshot.class);
     }
     private String context(String owner, String source) { return "source:" + owner + ":" + source; }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void remove(UUID owner, UUID source, long config, long snapshot) {
+        mapper.expireDecisions(owner.toString(), source.toString());
+        if (mapper.remove(owner.toString(), source.toString(), config, snapshot) != 1) { throw ApiException.conflict(); }
+    }
 }

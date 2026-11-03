@@ -311,18 +311,18 @@
 
 **Interfaces:** `ConfigImportService.preview(UUID ownerId, String yaml): ImportPreview`；`confirm(UUID ownerId, UUID previewId, Map<UUID, BindingChoice> choices): DraftSnapshot`；`LocalBindingService.preview(UUID ownerId, UUID localNodeId, UUID remoteNodeId): BindingPreview`、`apply(UUID ownerId, UUID previewId): BindingResult`；`SourceRemovalService.preview(UUID ownerId, UUID sourceId): RemovalPreview`、`apply(UUID ownerId, UUID previewId, RemovalMode mode): RemovalResult`（CLEAR/KEEP_LOCAL）。
 
-- [ ] 写红灯：节点/基础设置/22 组的嵌套引用/2,124 规则/14 provider 无丢失；按完整连接配置唯一匹配才建议关联，仍需人工确认；重名不同参数、多个来源同参数不能擅自关联；未匹配节点本地保留；不支持字段/组类型/provider 依赖留待处理草稿。
-- [ ] 写绑定与删除断言：
+- [x] 写红灯：节点/基础设置/22 组的嵌套引用/2,124 规则/14 provider 无丢失；按完整连接配置唯一匹配才建议关联，仍需人工确认；重名不同参数、多个来源同参数不能擅自关联；未匹配节点本地保留；不支持字段/组类型/provider 依赖留待处理草稿。
+- [x] 写绑定与删除断言：
   ~~~java
   assertThat(publishedYamlAfterBinding).isEqualTo(publishedYamlBeforeBinding);
   assertThat(affectedDraft.nodeRefs()).contains(remoteNodeId).doesNotContain(localNodeId);
   assertThat(keptLocalNode.connection()).isEqualTo(remoteConnectionBeforeRemoval);
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dit.test=ConfigImportIT,LocalBindingIT,SourceRemovalIT verify`，确认红灯。
-- [ ] V7 同时建立 import_preview 与 import_batch：预览有效期 30 分钟、绑定 owner revision；确认后将原 YAML 加密保留于方案关联的导入批次，未支持内容不随预览过期消失。提交前重新核实关联对象/版本，只创建新草稿，不覆盖既有方案。按原名称映射重建组、直接规则目标、dialer-proxy 和 provider 的 ID 引用；未知类型保留原定义并列入 importIssues，必须显式处理后才能发布。提供人工构造的同规模脱敏夹具。
-- [ ] 本地绑定只改变相关草稿；发布继续引用原本地节点快照直至重新发布。删除来源必须预览影响：CLEAR 复用任务 11 的原子清理/REJECT 规则；KEEP_LOCAL 将当前节点转本地并保留 ID/连接配置，更新定义中的来源归属，输出连接行为保持；两者均受版本保护。与发布/刷新竞争时重试或冲突，不复活已删除来源。
-- [ ] 同命令通过；实现 POST `/api/v1/imports/preview`、`/imports/{id}/confirm`、`/nodes/{id}/binding/preview`、`/bindings/{id}/apply`、`/sources/{id}/removal/preview`、`/source-removals/{id}/apply`。
-- [ ] 提交：`feat: import full configs and preserve unmatched local nodes`。
+- [x] 运行 `./scripts/mvn.sh -Dit.test=ConfigImportIT,LocalBindingIT,SourceRemovalIT verify`，确认红灯。
+- [x] V7 同时建立 import_preview 与 import_batch：预览有效期 30 分钟、绑定 owner revision；确认后将原 YAML 加密保留于方案关联的导入批次，未支持内容不随预览过期消失。提交前重新核实关联对象/版本，只创建新草稿，不覆盖既有方案。按原名称映射重建组、直接规则目标、dialer-proxy 和 provider 的 ID 引用；未知类型保留原定义并列入 importIssues，必须显式处理后才能发布。提供人工构造的同规模脱敏夹具。
+- [x] 本地绑定只改变相关草稿；发布继续引用原本地节点快照直至重新发布。删除来源必须预览影响：CLEAR 复用任务 11 的原子清理/REJECT 规则；KEEP_LOCAL 将当前节点转本地并保留 ID/连接配置，更新定义中的来源归属，输出连接行为保持；两者均受版本保护。与发布/刷新竞争时重试或冲突，不复活已删除来源。
+- [x] 同命令通过；实现 POST `/api/v1/imports/preview`、`/imports/{id}/confirm`、`/nodes/{id}/binding/preview`、`/bindings/{id}/apply`、`/sources/{id}/removal/preview`、`/source-removals/{id}/apply`。
+- [x] 提交：`feat: import full configs and preserve unmatched local nodes`。
 
 ## Task 14: Vue 应用、登录和统一请求状态
 

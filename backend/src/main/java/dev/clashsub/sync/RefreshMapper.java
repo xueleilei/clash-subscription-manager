@@ -21,6 +21,10 @@ public interface RefreshMapper {
     String lockRunning(@Param("owner") String owner, @Param("id") String id, @Param("now") java.time.Instant now);
     @Select("SELECT lease_until FROM refresh_attempt WHERE owner_id=#{owner} AND id=#{id}")
     java.time.Instant deadline(@Param("owner") String owner, @Param("id") String id);
+    @Select("SELECT " + ATTEMPT + " FROM refresh_attempt WHERE owner_id=#{owner} AND source_id=#{source} AND status IN ('QUEUED','RUNNING') ORDER BY id")
+    List<AttemptDO> activeForSource(@Param("owner") String owner, @Param("source") String source);
+    @Update("UPDATE refresh_attempt SET status='CANCELLED',payload_cipher=#{cipher} WHERE owner_id=#{owner} AND id=#{id} AND status IN ('QUEUED','RUNNING')")
+    int cancel(@Param("owner") String owner, @Param("id") String id, @Param("cipher") String cipher);
     @Select("SELECT " + DECISION + " FROM pending_empty_decision WHERE owner_id=#{owner} AND id=#{id}")
     EmptyDecisionDO decision(@Param("owner") String owner, @Param("id") String id);
     @Select("SELECT " + DECISION + " FROM pending_empty_decision WHERE owner_id=#{owner} AND source_id=#{source} AND config_version=#{config} AND snapshot_version=#{snapshot} AND candidate_digest=#{digest} AND state IN ('PENDING','KEPT') ORDER BY create_time DESC LIMIT 1")

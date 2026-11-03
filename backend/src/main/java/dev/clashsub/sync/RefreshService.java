@@ -21,14 +21,14 @@ public class RefreshService {
     private final SubscriptionParser parser;
     private final OwnerSnapshotReader snapshots;
     private final ReleaseService publisher;
-    private final ReferenceReconciler reconciler;
+    private final RefreshPlanner planner;
     private final RefreshCommitter committer;
     private final RefreshStateStore state;
     private final JsonMapper json;
     public RefreshService(SourceRepository sources, NodeRepository nodes, UpstreamFetcher fetcher, SubscriptionParser parser,
-            OwnerSnapshotReader snapshots, ReleaseService publisher, ReferenceReconciler reconciler, RefreshCommitter committer, RefreshStateStore state, JsonMapper json) {
+            OwnerSnapshotReader snapshots, ReleaseService publisher, RefreshPlanner planner, RefreshCommitter committer, RefreshStateStore state, JsonMapper json) {
         this.sources = sources; this.nodes = nodes; this.fetcher = fetcher; this.parser = parser; this.snapshots = snapshots;
-        this.publisher = publisher; this.reconciler = reconciler; this.committer = committer; this.state = state; this.json = json;
+        this.publisher = publisher; this.planner = planner; this.committer = committer; this.state = state; this.json = json;
     }
     @Transactional(propagation = Propagation.NEVER)
     public RefreshOutcome refresh(UUID owner, UUID sourceId, UUID attemptId) {
@@ -71,27 +71,8 @@ public class RefreshService {
             versions.put(sourceId, new SourceState(sourceId, captured.configVersion(), captured.snapshotVersion() + (diff.changed() || captured.snapshotVersion() == 0 ? 1 : 0)));
             var candidate = new OwnerSnapshot(owner, before.dataRevision(), versions, diff.catalog(), before.profiles());
             if (!parsed.isEmpty()) { validateEveryNode(sourceId, diff, candidate); }
-            var drafts = new LinkedHashMap<UUID, ProfileDocument>(); var releases = new LinkedHashMap<UUID, PreparedRelease>(); var changes = new LinkedHashMap<UUID, ChangeSummary.ProfileChange>();
-            for (var profile : before.profiles().values().stream().sorted(Comparator.comparing(value -> value.profileId().toString())).toList()) {
-                var draft = reconciler.reconcile(profile.draft().document(), diff.removed());
-                if (!draft.document().equals(profile.draft().document())) { drafts.put(profile.profileId(), draft.document()); }
-                var rejected = new LinkedHashSet<>(draft.rejectedRuleIds()); var empty = new LinkedHashSet<UUID>(); int removed = draft.removedMembers();
-                if (draft.removedMembers() > 0 || !draft.rejectedRuleIds().isEmpty()) { empty.addAll(draft.emptyGroupIds()); }
-                var old = profile.published();
-                if (old != null && old.sourceVersions().containsKey(sourceId)) {
-                    var published = reconciler.reconcile(old.definition(), diff.removed());
-                    var prepared = publisher.prepare(profile.profileId(), published.document(), candidate);
-                    if (!prepared.valid()) { throw new ApiValidationException(prepared.validation()); }
-                    if (!prepared.compiled().yaml().equals(old.yaml()) || !published.document().equals(old.definition())) { releases.put(profile.profileId(), prepared); }
-                    removed += published.removedMembers(); rejected.addAll(published.rejectedRuleIds());
-                    if (published.removedMembers() > 0 || !published.rejectedRuleIds().isEmpty()) { empty.addAll(published.emptyGroupIds()); }
-                }
-                if (removed > 0 || !rejected.isEmpty() || releases.containsKey(profile.profileId())) {
-                    changes.put(profile.profileId(), new ChangeSummary.ProfileChange(removed, List.copyOf(rejected), List.copyOf(empty)));
-                }
-            }
-            var summary = new ChangeSummary(diff.added().size(), diff.updated().size(), diff.removed().size(), changes);
-            try { return committer.commit(new RefreshProposal(before, source, attempt, decision, body, diff, drafts, releases, summary)).outcome(); }
+            var proposal = planner.plan(before, candidate, source, diff, attempt, decision, body, false);
+            try { return committer.commit(proposal).outcome(); }
             catch (ApiException exception) { if (exception.status() != 409 || retry == 2) { throw exception; } }
         }
         throw ApiException.conflict();

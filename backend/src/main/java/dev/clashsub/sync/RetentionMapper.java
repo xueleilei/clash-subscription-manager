@@ -17,4 +17,6 @@ public interface RetentionMapper {
     int deleteAttempts(@Param("owner") String owner, @Param("cutoff") Instant cutoff);
     @Delete("DELETE FROM pending_empty_decision WHERE owner_id=#{owner} AND state IN ('EXPIRED','CLEARED') AND update_time<#{cutoff}")
     int deleteResolvedDecisions(@Param("owner") String owner, @Param("cutoff") Instant cutoff);
+    @Delete("DELETE FROM import_preview WHERE owner_id=#{owner} AND expires_at<=#{now}")
+    int deleteExpiredPreviews(@Param("owner") String owner, @Param("now") Instant now);
 }
