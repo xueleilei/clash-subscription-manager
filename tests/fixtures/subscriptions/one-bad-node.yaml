@@ -1,0 +1,3 @@
+proxies:
+  - {name: valid, type: ss, server: fixture.example.com, port: 443, cipher: aes-128-gcm, password: fixture}
+  - {name: invalid, type: vless, server: fixture.example.com, port: 443, uuid: not-a-uuid}

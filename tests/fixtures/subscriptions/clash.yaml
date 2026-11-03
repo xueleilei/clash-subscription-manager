@@ -1,0 +1,48 @@
+proxies:
+  - name: '香港 SS '
+    type: ss
+    server: fixture.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: fixture-password
+    udp: true
+  - name: 'US VLESS WS'
+    type: vless
+    server: fixture.example.com
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000001
+    tls: true
+    servername: fixture.example.com
+    network: ws
+    ws-opts:
+      path: /fixture
+      headers: {Host: fixture.example.com}
+  - name: 'JP VLESS Reality'
+    type: vless
+    server: fixture.example.com
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000002
+    tls: true
+    servername: fixture.example.com
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      short-id: '0123456789abcdef'
+  - name: 'SG Hysteria2'
+    type: hysteria2
+    server: fixture.example.com
+    port: 443
+    password: fixture-password
+    obfs: salamander
+    obfs-password: fixture-obfs-password
+    sni: fixture.example.com
+    alpn: [h3]
+  - name: 'DE TUIC'
+    type: tuic
+    server: fixture.example.com
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000003
+    password: fixture-password
+    congestion-controller: bbr
+    udp-relay-mode: native
+    alpn: [h3]

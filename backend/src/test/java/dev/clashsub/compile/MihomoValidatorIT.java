@@ -28,6 +28,11 @@ class MihomoValidatorIT {
         assertThat(validator().validate(minimal()).errors()).isEmpty();
     }
 
+    @Test void acceptsSupportedClashProtocolFixturesWithRealCore() throws Exception {
+        var fixture = Files.readString(root.resolve("tests/fixtures/subscriptions/clash.yaml"));
+        assertThat(validator().validate(fixture + "\nrules: ['MATCH,REJECT']\n").errors()).isEmpty();
+    }
+
     @Test void rejectsBadProtocolCircularGroupsAndMissingTargets() {
         assertThat(validator().validate("proxies: [{name: bad, type: ss, server: example.com, port: 443, cipher: invalid, password: fixture}]\nrules: ['MATCH,REJECT']\n").valid()).isFalse();
         assertThat(validator().validate("proxy-groups: [{name: A, type: select, proxies: [B]}, {name: B, type: select, proxies: [A]}]\nrules: ['MATCH,A']\n").valid()).isFalse();

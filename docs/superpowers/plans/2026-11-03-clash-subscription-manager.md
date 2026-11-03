@@ -149,16 +149,16 @@
 
 **Interfaces:** `SubscriptionParser.parse(byte[] body, InputFormat format): ParseResult`；ParseResult 含全部 ParsedNode（原名、协议、完整 connection、原始引用）、诊断、`validEmpty`，有 error 时不暴露可提交的部分成功列表。`SafeYaml.load(String): YamlDocument`；只解析来源中的 proxies，完整配置导入另见任务 13。
 
-- [ ] 写覆盖 ss/vless/hysteria2/tuic 的合法和非法夹具；保留 TLS/Reality/传输字段；断言重复名称、重复 YAML key、自定义标签、超深锚点、任意一个坏节点导致整个结果不可提交。
+- [x] 写覆盖 ss/vless/hysteria2/tuic 的合法和非法夹具；保留 TLS/Reality/传输字段；断言重复名称、重复 YAML key、自定义标签、超深锚点、任意一个坏节点导致整个结果不可提交。
   ~~~java
   assertThat(parser.parse("proxies: []".getBytes(UTF_8), CLASH_YAML).validEmpty()).isTrue();
   assertThat(parser.parse(new byte[0], AUTO).hasErrors()).isTrue();
   assertThat(parseFixture("one-bad-node.yaml").committable()).isFalse();
   ~~~
-- [ ] 运行 `./scripts/mvn.sh -Dtest=ClashYamlParserTest test`，确认红灯。
-- [ ] 复用任务 3 的 YAML 限制，增加节点 20,000 上限。按固定内核字段模式检查参数，保留有明确模式的扩展；未知影响连接行为的字段报错。provider-only 输入报不支持，不当空订阅。ParseResult 中 committable() 等价于 errors 为空，空 body/纯空白/无可识别格式不算 validEmpty。
-- [ ] 同命令通过；用任务 3 对协议夹具构造的受控节点集合做真实检查，记录协议矩阵。地区推断仅依据可识别名称标记，未识别为“未知”。
-- [ ] 提交：`feat: parse clash subscriptions without partial updates`。
+- [x] 运行 `./scripts/mvn.sh -Dtest=ClashYamlParserTest test`，确认红灯。
+- [x] 复用任务 3 的 YAML 限制，增加节点 20,000 上限。按固定内核字段模式检查参数，保留有明确模式的扩展；未知影响连接行为的字段报错。provider-only 输入报不支持，不当空订阅。ParseResult 中 committable() 等价于 errors 为空，空 body/纯空白/无可识别格式不算 validEmpty。
+- [x] 同命令通过；用任务 3 对协议夹具构造的受控节点集合做真实检查，记录协议矩阵。地区推断仅依据可识别名称标记，未识别为“未知”。
+- [x] 提交：`feat: parse clash subscriptions without partial updates`。
 
 ## Task 5: URI 与 Base64 订阅适配
 
