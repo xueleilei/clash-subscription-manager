@@ -15,6 +15,7 @@ export interface ProfileDocument { schemaVersion: number; baseYaml: string; grou
 export interface DraftView { profileId: Id; version: Version; document: ProfileDocument; diagnostics: ValidationReport }
 export interface ProfileView { id: Id; name: string; version: Version; draftVersion: Version; currentReleaseId: Id | null; publishedVersion: Version | null; draftDefinitionHash: string; publishedDefinitionHash: string | null; hasUnpublishedNodeChanges?: boolean; createTime: string; updateTime: string }
 export interface NodeSummary { id: Id; sourceId: Id | null; originalName: string; protocol: string; region: string | null; snapshotVersion: Version }
+export interface NodeRegionGroup { name: string; regions: { code: string; name: string }[] }
 export interface NodeSpec extends Pick<NodeSummary, 'id' | 'sourceId' | 'originalName' | 'protocol'> { connection: JsonObject; dialerRef: TargetRef | null }
 export interface LocalNodeCommand { expectedVersion?: Version; name: string; protocol: string; connection: JsonObject; dialerRef: TargetRef | null }
 export interface LocalNodeView { node: NodeSpec; version: Version; affectedProfiles: Id[]; publishedProfiles: Id[] }

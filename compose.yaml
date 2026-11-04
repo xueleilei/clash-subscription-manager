@@ -26,6 +26,14 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       UPSTREAM_PRIVATE_ALLOWLIST: ${UPSTREAM_PRIVATE_ALLOWLIST:-}
       TRUSTED_OUTBOUND_PROXY_URL: ${TRUSTED_OUTBOUND_PROXY_URL:-}
+      NODE_REGIONS_FILE: /etc/clashsub/node-regions.yaml
+    volumes:
+      - type: bind
+        source: ${NODE_REGIONS_FILE:-./config/node-regions.yaml}
+        target: /etc/clashsub/node-regions.yaml
+        read_only: true
+        bind:
+          create_host_path: false
     secrets: [db_password, admin_password, encryption_key]
     extra_hosts:
       - "host.docker.internal:host-gateway"

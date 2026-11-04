@@ -3,6 +3,7 @@
 自托管的 Clash Verge / Mihomo Web 配置管理器。统一维护上游订阅，每套方案独立编辑代理组、规则、远程规则集和基础 YAML，并提供固定订阅链接。
 
 - 多来源节点池，按来源与原始名称识别节点；同名参数更新保留分组，节点消失自动清理引用。
+- 地区筛选与名称识别共用[服务器地区配置](config/node-regions.yaml)，支持自定义分组、名称、代码与别名；重启应用即可应用到已有节点。
 - A 三栏工作台：代理组、当前成员、统一节点池。支持跨来源多选、嵌套组、select / url-test 和空组 REJECT。
 - YAML、URI 列表与 Base64 订阅；URI 支持 ss、ssr、vmess、vless、trojan、hysteria2、tuic。解析失败整批保留旧数据。
 - 合法空列表由用户选择保留或清空；直接规则目标失效时改为 REJECT，保留匹配条件与顺序。
@@ -49,6 +50,7 @@ docker compose -f compose.yaml -f compose.mysql.yaml up -d
 - [备份与恢复](docs/operations/backup-restore.md)
 - [验收结果与正式界面](docs/operations/verification.md)
 - [手动节点维护](docs/operations/manual-nodes.md)
+- [如何增加或修改节点地区](docs/operations/node-regions.md)
 - [前端结构与本地开发](docs/development/frontend.md)
 - [API 契约](docs/api/contracts.md)
 - [已确认设计](docs/superpowers/specs/2026-11-03-clash-subscription-manager-design.md)

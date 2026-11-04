@@ -66,10 +66,11 @@ class ClashYamlParserTest {
         }
     }
 
-    @Test void regionIsOnlyANameHint() {
-        assertThat(RegionHint.fromName("香港 SS")).isEqualTo("HK");
-        assertThat(RegionHint.fromName("🇯🇵 东京")).isEqualTo("JP");
-        assertThat(RegionHint.fromName("Ordinary node")).isEqualTo("UNKNOWN");
+    @Test void regionIsOnlyANameHint() throws java.io.IOException {
+        var regions = new RegionConfiguration().nodeRegions("");
+        assertThat(regions.fromName("香港 SS")).isEqualTo("HK");
+        assertThat(regions.fromName("🇯🇵 东京")).isEqualTo("JP");
+        assertThat(regions.fromName("Ordinary node")).isEqualTo("UNKNOWN");
     }
 
     @Test void invalidHysteriaBandwidthCannotSilentlyBecomeAutomaticCongestionControl() {

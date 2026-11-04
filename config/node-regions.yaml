@@ -1,0 +1,118 @@
+# 顺序即下拉框的显示顺序。code 为两个大写英文字母，请用引号包住（如 "NO"）。
+# 根据旗帜、名称 / 别名、独立地区代码识别；aliases 为普通文本，不是正则表达式。
+groups:
+  - name: "东亚与东南亚"
+    regions:
+      - {code: "HK", name: "香港", aliases: ["Hong Kong", "HongKong", "Hong-Kong", "Hong.Kong", "Hong_Kong", "中国香港", "中國香港"]}
+      - {code: "MO", name: "澳门", aliases: ["澳門", "中国澳门", "中國澳門", "Macau", "Macao"]}
+      - {code: "TW", name: "台湾", aliases: ["台灣", "臺灣", "台北", "臺北", "Taiwan", "Taipei"]}
+      - {code: "CN", name: "中国大陆", aliases: ["中國大陸", "中国内地", "中國內地", "中国", "中國", "大陆", "大陸", "China", "Mainland China", "北京", "上海", "广州", "廣州", "深圳"]}
+      - {code: "JP", name: "日本", aliases: ["东京", "東京", "大阪", "Japan", "Tokyo", "Osaka"]}
+      - {code: "KR", name: "韩国", aliases: ["韓國", "南韩", "南韓", "首尔", "首爾", "Korea", "South Korea", "Seoul"]}
+      - {code: "MN", name: "蒙古", aliases: ["蒙古国", "蒙古國", "Mongolia"]}
+      - {code: "SG", name: "新加坡", aliases: ["狮城", "獅城", "Singapore"]}
+      - {code: "MY", strictCode: true, name: "马来西亚", aliases: ["馬來西亞", "大马", "大馬", "吉隆坡", "Malaysia", "Kuala Lumpur"]}
+      - {code: "TH", name: "泰国", aliases: ["泰國", "曼谷", "Thailand", "Bangkok"]}
+      - {code: "VN", name: "越南", aliases: ["河内", "河內", "胡志明市", "Vietnam", "Viet Nam", "Hanoi"]}
+      - {code: "PH", name: "菲律宾", aliases: ["菲律賓", "马尼拉", "馬尼拉", "Philippines", "Manila"]}
+      - {code: "ID", strictCode: true, name: "印度尼西亚", aliases: ["印度尼西亞", "印尼", "雅加达", "雅加達", "Indonesia", "Jakarta"]}
+      - {code: "KH", name: "柬埔寨", aliases: ["金边", "金邊", "Cambodia", "Phnom Penh"]}
+      - {code: "MM", name: "缅甸", aliases: ["緬甸", "仰光", "Myanmar", "Burma", "Yangon"]}
+      - {code: "LA", name: "老挝", aliases: ["老撾", "寮国", "寮國", "Laos"]}
+      - {code: "BN", name: "文莱", aliases: ["汶萊", "Brunei"]}
+  - name: "南亚与中亚"
+    regions:
+      - {code: "IN", strictCode: true, name: "印度", aliases: ["孟买", "孟買", "新德里", "India", "Mumbai", "New Delhi"]}
+      - {code: "PK", name: "巴基斯坦", aliases: ["Pakistan"]}
+      - {code: "BD", name: "孟加拉国", aliases: ["孟加拉國", "孟加拉", "Bangladesh"]}
+      - {code: "LK", name: "斯里兰卡", aliases: ["斯里蘭卡", "Sri Lanka"]}
+      - {code: "NP", name: "尼泊尔", aliases: ["尼泊爾", "Nepal"]}
+      - {code: "BT", name: "不丹", aliases: ["Bhutan"]}
+      - {code: "MV", name: "马尔代夫", aliases: ["馬爾代夫", "馬爾地夫", "Maldives"]}
+      - {code: "KZ", name: "哈萨克斯坦", aliases: ["哈薩克斯坦", "Kazakhstan"]}
+      - {code: "UZ", name: "乌兹别克斯坦", aliases: ["烏茲別克斯坦", "Uzbekistan"]}
+      - {code: "KG", name: "吉尔吉斯斯坦", aliases: ["吉爾吉斯斯坦", "Kyrgyzstan"]}
+  - name: "欧洲"
+    regions:
+      - {code: "GB", name: "英国", aliases: ["英國", "伦敦", "倫敦", "United Kingdom", "Great Britain", "Britain", "London", "UK"]}
+      - {code: "DE", name: "德国", aliases: ["德國", "法兰克福", "法蘭克福", "柏林", "Germany", "Frankfurt", "Berlin"]}
+      - {code: "FR", name: "法国", aliases: ["法國", "巴黎", "France", "Paris"]}
+      - {code: "NL", name: "荷兰", aliases: ["荷蘭", "阿姆斯特丹", "Netherlands", "Amsterdam"]}
+      - {code: "IE", name: "爱尔兰", aliases: ["愛爾蘭", "都柏林", "Ireland", "Dublin"]}
+      - {code: "CH", name: "瑞士", aliases: ["苏黎世", "蘇黎世", "Switzerland", "Zurich", "Zürich"]}
+      - {code: "AT", strictCode: true, name: "奥地利", aliases: ["奧地利", "维也纳", "維也納", "Austria", "Vienna"]}
+      - {code: "BE", strictCode: true, name: "比利时", aliases: ["比利時", "Belgium", "Brussels"]}
+      - {code: "LU", name: "卢森堡", aliases: ["盧森堡", "Luxembourg"]}
+      - {code: "SE", name: "瑞典", aliases: ["斯德哥尔摩", "斯德哥爾摩", "Sweden", "Stockholm"]}
+      - {code: "NO", strictCode: true, name: "挪威", aliases: ["奥斯陆", "奧斯陸", "Norway", "Oslo"]}
+      - {code: "FI", name: "芬兰", aliases: ["芬蘭", "赫尔辛基", "赫爾辛基", "Finland", "Helsinki"]}
+      - {code: "DK", name: "丹麦", aliases: ["丹麥", "Denmark", "Copenhagen"]}
+      - {code: "IS", strictCode: true, name: "冰岛", aliases: ["冰島", "Iceland"]}
+      - {code: "IT", strictCode: true, name: "意大利", aliases: ["義大利", "米兰", "米蘭", "Italy", "Milan"]}
+      - {code: "ES", name: "西班牙", aliases: ["马德里", "馬德里", "Spain", "Madrid"]}
+      - {code: "PT", name: "葡萄牙", aliases: ["里斯本", "Portugal", "Lisbon"]}
+      - {code: "PL", name: "波兰", aliases: ["波蘭", "华沙", "華沙", "Poland", "Warsaw"]}
+      - {code: "CZ", name: "捷克", aliases: ["布拉格", "Czechia", "Czech Republic", "Prague"]}
+      - {code: "SK", name: "斯洛伐克", aliases: ["Slovakia"]}
+      - {code: "HU", name: "匈牙利", aliases: ["布达佩斯", "布達佩斯", "Hungary", "Budapest"]}
+      - {code: "RO", name: "罗马尼亚", aliases: ["羅馬尼亞", "Romania", "Bucharest"]}
+      - {code: "BG", name: "保加利亚", aliases: ["保加利亞", "Bulgaria"]}
+      - {code: "GR", name: "希腊", aliases: ["希臘", "Greece", "Athens"]}
+      - {code: "HR", name: "克罗地亚", aliases: ["克羅地亞", "Croatia"]}
+      - {code: "RS", name: "塞尔维亚", aliases: ["塞爾維亞", "Serbia"]}
+      - {code: "SI", name: "斯洛文尼亚", aliases: ["斯洛文尼亞", "Slovenia"]}
+      - {code: "EE", name: "爱沙尼亚", aliases: ["愛沙尼亞", "Estonia"]}
+      - {code: "LV", name: "拉脱维亚", aliases: ["拉脫維亞", "Latvia"]}
+      - {code: "LT", name: "立陶宛", aliases: ["Lithuania"]}
+      - {code: "UA", name: "乌克兰", aliases: ["烏克蘭", "Ukraine", "Kyiv"]}
+      - {code: "RU", name: "俄罗斯", aliases: ["俄羅斯", "莫斯科", "Russia", "Moscow"]}
+      - {code: "BY", strictCode: true, name: "白俄罗斯", aliases: ["白俄羅斯", "Belarus"]}
+      - {code: "MD", name: "摩尔多瓦", aliases: ["摩爾多瓦", "Moldova"]}
+      - {code: "AL", name: "阿尔巴尼亚", aliases: ["阿爾巴尼亞", "Albania"]}
+      - {code: "MT", name: "马耳他", aliases: ["馬耳他", "Malta"]}
+      - {code: "CY", name: "塞浦路斯", aliases: ["塞浦路斯共和国", "賽普勒斯", "Cyprus"]}
+  - name: "美洲"
+    regions:
+      - {code: "US", name: "美国", aliases: ["美國", "美利坚", "洛杉矶", "洛杉磯", "圣何塞", "聖何塞", "纽约", "紐約", "西雅图", "西雅圖", "United States", "UnitedStates", "United-States", "United.States", "United_States", "Los Angeles", "San Jose", "New York", "Seattle", "USA"]}
+      - {code: "CA", name: "加拿大", aliases: ["多伦多", "多倫多", "温哥华", "溫哥華", "Canada", "Toronto", "Vancouver"]}
+      - {code: "MX", name: "墨西哥", aliases: ["Mexico", "México"]}
+      - {code: "BR", name: "巴西", aliases: ["圣保罗", "聖保羅", "Brazil", "Sao Paulo", "São Paulo"]}
+      - {code: "AR", name: "阿根廷", aliases: ["Argentina", "Buenos Aires"]}
+      - {code: "CL", name: "智利", aliases: ["Chile", "Santiago de Chile"]}
+      - {code: "CO", name: "哥伦比亚", aliases: ["哥倫比亞", "Colombia"]}
+      - {code: "PE", name: "秘鲁", aliases: ["秘魯", "Peru", "Perú"]}
+      - {code: "UY", name: "乌拉圭", aliases: ["烏拉圭", "Uruguay"]}
+      - {code: "EC", name: "厄瓜多尔", aliases: ["厄瓜多爾", "Ecuador"]}
+      - {code: "VE", name: "委内瑞拉", aliases: ["委內瑞拉", "Venezuela"]}
+      - {code: "PA", name: "巴拿马", aliases: ["巴拿馬", "Panama"]}
+      - {code: "CR", name: "哥斯达黎加", aliases: ["哥斯達黎加", "Costa Rica"]}
+      - {code: "PR", name: "波多黎各", aliases: ["Puerto Rico"]}
+  - name: "大洋洲"
+    regions:
+      - {code: "AU", name: "澳大利亚", aliases: ["澳大利亞", "澳洲", "悉尼", "雪梨", "墨尔本", "墨爾本", "Australia", "Sydney", "Melbourne"]}
+      - {code: "NZ", name: "新西兰", aliases: ["新西蘭", "纽西兰", "紐西蘭", "奥克兰", "奧克蘭", "New Zealand", "Auckland"]}
+      - {code: "GU", name: "关岛", aliases: ["關島", "Guam"]}
+      - {code: "FJ", name: "斐济", aliases: ["斐濟", "Fiji"]}
+  - name: "西亚与非洲"
+    regions:
+      - {code: "TR", name: "土耳其", aliases: ["伊斯坦布尔", "伊斯坦堡", "Turkey", "Türkiye", "Istanbul"]}
+      - {code: "AE", name: "阿联酋", aliases: ["阿聯酋", "阿拉伯联合酋长国", "阿拉伯聯合大公國", "迪拜", "杜拜", "United Arab Emirates", "Dubai", "UAE"]}
+      - {code: "IL", name: "以色列", aliases: ["Israel", "Tel Aviv"]}
+      - {code: "SA", name: "沙特阿拉伯", aliases: ["沙特", "沙烏地阿拉伯", "Saudi Arabia", "Riyadh"]}
+      - {code: "QA", name: "卡塔尔", aliases: ["卡塔爾", "卡達", "Qatar", "Doha"]}
+      - {code: "BH", name: "巴林", aliases: ["Bahrain"]}
+      - {code: "KW", name: "科威特", aliases: ["Kuwait"]}
+      - {code: "OM", name: "阿曼", aliases: ["Oman"]}
+      - {code: "IR", name: "伊朗", aliases: ["Iran"]}
+      - {code: "JO", name: "约旦", aliases: ["約旦", "Jordan"]}
+      - {code: "GE", name: "格鲁吉亚", aliases: ["格魯吉亞", "喬治亞", "Georgia", "Tbilisi"]}
+      - {code: "AM", strictCode: true, name: "亚美尼亚", aliases: ["亞美尼亞", "Armenia"]}
+      - {code: "AZ", name: "阿塞拜疆", aliases: ["亞塞拜然", "Azerbaijan"]}
+      - {code: "EG", name: "埃及", aliases: ["Egypt", "Cairo"]}
+      - {code: "ZA", name: "南非", aliases: ["South Africa", "Johannesburg"]}
+      - {code: "KE", name: "肯尼亚", aliases: ["肯尼亞", "肯亞", "Kenya", "Nairobi"]}
+      - {code: "NG", name: "尼日利亚", aliases: ["尼日利亞", "奈及利亞", "Nigeria", "Lagos"]}
+      - {code: "MA", name: "摩洛哥", aliases: ["Morocco"]}
+      - {code: "DZ", name: "阿尔及利亚", aliases: ["阿爾及利亞", "Algeria"]}
+      - {code: "TN", name: "突尼斯", aliases: ["突尼西亞", "Tunisia"]}
+      - {code: "MU", name: "毛里求斯", aliases: ["模里西斯", "Mauritius"]}

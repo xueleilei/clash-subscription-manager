@@ -11,6 +11,7 @@ FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a
 ARG TARGETARCH
 WORKDIR /build
 COPY backend/ backend/
+COPY config/node-regions.yaml config/node-regions.yaml
 COPY --from=frontend /build/frontend/dist/ frontend/dist/
 COPY tools/mihomo/ tools/mihomo/
 COPY deploy/HealthCheck.java deploy/HealthCheck.java

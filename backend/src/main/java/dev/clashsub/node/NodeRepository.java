@@ -3,7 +3,7 @@ package dev.clashsub.node;
 import dev.clashsub.common.ApiException;
 import dev.clashsub.common.EncryptedDocuments;
 import dev.clashsub.common.Page;
-import dev.clashsub.parse.RegionHint;
+import dev.clashsub.parse.RegionCatalog;
 import dev.clashsub.source.SourceRepository;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,8 +22,9 @@ public class NodeRepository {
     private final NodeMapper mapper;
     private final EncryptedDocuments documents;
     private final SourceRepository sources;
-    public NodeRepository(NodeMapper mapper, EncryptedDocuments documents, SourceRepository sources) {
-        this.mapper = mapper; this.documents = documents; this.sources = sources;
+    private final RegionCatalog regions;
+    public NodeRepository(NodeMapper mapper, EncryptedDocuments documents, SourceRepository sources, RegionCatalog regions) {
+        this.mapper = mapper; this.documents = documents; this.sources = sources; this.regions = regions;
     }
     public NodeSpec connection(UUID owner, UUID id) {
         var row = mapper.find(owner.toString(), id.toString());
@@ -48,7 +49,7 @@ public class NodeRepository {
         if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
         var key = NodeIdentity.key(node.id(), node.originalName());
         var row = new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
-                RegionHint.fromName(node.originalName()), expected + 1, documents.write(node, context(owner.toString(), node.id().toString())));
+                regions.fromName(node.originalName()), expected + 1, documents.write(node, context(owner.toString(), node.id().toString())));
         if (mapper.updateLocal(row, expected) != 1) { throw ApiException.conflict(); }
     }
     @Transactional(propagation = Propagation.MANDATORY)
@@ -84,7 +85,7 @@ public class NodeRepository {
         if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
         var key = NodeIdentity.key(node.id(), node.originalName());
         mapper.insert(new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
-                RegionHint.fromName(node.originalName()), 0, documents.write(node, context(owner.toString(), node.id().toString()))));
+                regions.fromName(node.originalName()), 0, documents.write(node, context(owner.toString(), node.id().toString()))));
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void detachSource(UUID owner, UUID source) {
@@ -123,7 +124,7 @@ public class NodeRepository {
             var previous = byId.get(node.id().toString());
             if (previous != null && !previous.originalName().equals(node.originalName())) { throw ApiException.conflict(); }
             var row = new NodeDO(node.id().toString(), owner.toString(), source.toString(), key.nameHash(), node.originalName(),
-                    node.protocol(), RegionHint.fromName(node.originalName()), snapshot, documents.write(node, context(owner.toString(), node.id().toString())));
+                    node.protocol(), regions.fromName(node.originalName()), snapshot, documents.write(node, context(owner.toString(), node.id().toString())));
             if (previous == null) { mapper.insert(row); }
             else if (mapper.update(row) != 1) { throw ApiException.conflict(); }
         }

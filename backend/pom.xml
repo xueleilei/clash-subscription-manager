@@ -25,6 +25,7 @@
   <build>
     <resources>
       <resource><directory>src/main/resources</directory></resource>
+      <resource><directory>../config</directory><includes><include>node-regions.yaml</include></includes></resource>
       <resource><directory>../frontend/dist</directory><targetPath>static</targetPath></resource>
     </resources>
     <plugins>

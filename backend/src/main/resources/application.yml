@@ -44,6 +44,7 @@ mybatis-plus:
   global-config:
     banner: false
 clash:
+  node-regions-file: ${NODE_REGIONS_FILE:}
   public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
   fetch:
     private-allowlist: ${UPSTREAM_PRIVATE_ALLOWLIST:}

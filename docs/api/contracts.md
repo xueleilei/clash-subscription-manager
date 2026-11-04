@@ -23,6 +23,7 @@ ID 使用 UUID 字符串；版本使用十进制字符串，前端不转成 Numb
 | 来源列表/创建/修改 | GET/POST `/sources`，PATCH `/sources/{id}` |
 | 来源明文凭据（显式操作） | GET `/sources/{id}/credentials`，no-store |
 | 节点查询/明文参数 | GET `/nodes?name=&sourceId=&protocol=&region=&page=&size=`，GET `/nodes/{id}/connection` |
+| 节点地区选项 | GET `/nodes/regions`，返回配置顺序的 `[{name,regions:[{code,name}]}]`；节点查询按两位地区代码或 `UNKNOWN` 筛选 |
 | 手动刷新/全部刷新 | POST `/sources/{id}/refresh`、`/sources/refresh-all`，返回 202 task |
 | 任务与来源历史 | GET `/tasks/{id}`、`/sources/{id}/history` |
 | 空结果选择 | GET `/empty-decisions`，POST `/empty-decisions/{id}/decision` `{choice:"KEEP"|"CLEAR"}` |

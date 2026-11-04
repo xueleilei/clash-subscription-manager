@@ -52,6 +52,23 @@ class LocalNodeIT extends RefreshTestSupport {
         assertThat(new String(cipher, StandardCharsets.UTF_8)).doesNotContain("fixture-local-secret");
     }
 
+    @Test void servesConfiguredOptionsAndFiltersLocalAndSubscriptionNodesByTheSameCodes() throws Exception {
+        var groups = ok(send("GET", "/nodes/regions", null));
+        assertThat(groups.toString()).contains("\"code\":\"MO\"", "澳门", "\"code\":\"BR\"").doesNotContain("aliases", "connection");
+        var local = ok(send("POST", "/local-nodes", input("澳門 01", "fixture-secret")));
+        UUID upstream = source("Fixture source", yaml("🇲🇴 02"));
+        var all = ok(send("GET", "/nodes?region=MO", null));
+        assertThat(all.path("total").asInt()).isEqualTo(2);
+        var manual = ok(send("GET", "/nodes?region=MO&localOnly=true", null));
+        assertThat(manual.path("total").asInt()).isEqualTo(1);
+        assertThat(manual.path("items").get(0).path("id")).isEqualTo(local.path("id"));
+        var remote = ok(send("GET", "/nodes?region=MO&sourceId=" + upstream, null));
+        assertThat(remote.path("total").asInt()).isEqualTo(1);
+        assertThat(remote.path("items").get(0).path("region").asString()).isEqualTo("MO");
+        ok(send("PUT", "/local-nodes/" + local.path("id").asString(), input("Sydney 01", "fixture-secret").put("expectedVersion", "0")));
+        assertThat(ok(send("GET", "/nodes?region=AU&localOnly=true", null)).path("total").asInt()).isOne();
+    }
+
     @Test void editingLocalParametersIsPinnedAcrossTwoRemoteRefreshesUntilManualPublication() throws Exception {
         var created = ok(send("POST", "/local-nodes", input("Local old name", "fixture-local-old")));
         UUID id = UUID.fromString(created.path("id").asString());

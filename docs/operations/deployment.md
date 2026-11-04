@@ -21,6 +21,7 @@ cp .env.example .env
 | `DB_URL` | 已有 MySQL JDBC URL，包含目标库、UTC 时区与部署所需 TLS 设置 |
 | `DB_USERNAME` / `DB_PASSWORD_FILE` | 专用数据库账号与密码文件 |
 | `DB_NAME` | 配套 MySQL 创建的数据库名，默认 `clashsub` |
+| `NODE_REGIONS_FILE` | 宿主机地区 YAML 的路径，默认 `./config/node-regions.yaml`；[配置示例与生效方式](node-regions.md) |
 | `MYSQL_ROOT_PASSWORD_FILE` | 仅配套 MySQL 初始化使用的独立 root 密码文件 |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD_FILE` | 首次初始化管理员；已有管理员不会被启动参数覆盖 |
 | `APP_ENCRYPTION_KEY_FILE` | 必须持久保存的 32 字节二进制密钥；不能替换为 Base64 文本 |
