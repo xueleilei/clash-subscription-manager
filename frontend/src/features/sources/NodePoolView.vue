@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, useTemplateRef, watch, watchPostEffect } from 'vue'
 import { ElButton } from 'element-plus'
 import NodeRegionSelect from '../nodes/NodeRegionSelect.vue'
 import type { NodeSummary, Page, SourceView } from '../../types/domain'
@@ -14,18 +14,45 @@ const selectable = computed(() => props.nodes.items.filter(node => !node.sourceI
 const pageSelected = computed(() => selectable.value.filter(node => props.selectedIds?.has(node.id)).length)
 const allSelected = computed(() => selectable.value.length > 0 && pageSelected.value === selectable.value.length)
 const pageExceedsLimit = computed(() => (props.selectedIds?.size ?? 0) + selectable.value.length - pageSelected.value > (props.selectionLimit ?? 500))
+const nodeTable = useTemplateRef<HTMLTableElement>('nodeTable')
+watchPostEffect(onCleanup => {
+ const table = nodeTable.value
+ const header = table?.tHead
+ if (!props.localOnly || !table || !header) return
+
+ // A sticky header inside the horizontal scroller would stick to that scroller, not the page.
+ const syncHeader = () => {
+  const { top, height } = table.getBoundingClientRect()
+  const offset = Math.max(0, Math.min(-top, height - header.getBoundingClientRect().height))
+  header.style.transform = offset ? `translateY(${offset}px)` : ''
+ }
+ const resize = new ResizeObserver(syncHeader)
+ resize.observe(table)
+ resize.observe(document.body)
+ window.addEventListener('scroll', syncHeader, { passive: true })
+ syncHeader()
+ onCleanup(() => {
+  window.removeEventListener('scroll', syncHeader)
+  resize.disconnect()
+  header.style.removeProperty('transform')
+ })
+})
 function selectionDisabled(node: NodeSummary) {
  return props.busy || !!node.sourceId || (!props.selectedIds?.has(node.id) && (props.selectedIds?.size ?? 0) >= (props.selectionLimit ?? 500))
 }
 function change(patch: Partial<NodeFilters>) { emit('queryChange', { ...props.query, page: 1, ...patch }) }
 function value(event: Event) { return (event.target as HTMLSelectElement).value }
 </script>
-<style scoped>.source-cell{max-width:220px;overflow-wrap:anywhere}</style>
+<style scoped>
+.source-cell { max-width: 220px; overflow-wrap: anywhere; }
+.manual-table-head { position: relative; z-index: 1; background: var(--surface-raised); }
+.manual-table-head th { box-shadow: inset 0 -1px var(--line); }
+</style>
 <template><section class="panel"><div class="node-filters"><form class="search-form" @submit.prevent="change({name: keyword})"><input v-model="keyword" aria-label="搜索节点名称" placeholder="搜索节点名称"><ElButton native-type="submit">搜索</ElButton></form><div class="filter-selects" :class="{'local-filters': localOnly}"><select v-if="!localOnly" :value="query.sourceId" aria-label="筛选来源" @change="change({sourceId: value($event)})"><option value="">全部来源</option><option value="__LOCAL__">本地节点</option><option v-for="source in sources" :key="source.id" :value="source.id">{{ source.name }}</option></select><select :value="query.protocol" aria-label="筛选协议" @change="change({protocol: value($event)})"><option value="">全部协议</option><option v-for="protocol in ['ss','ssr','vmess','vless','trojan','hysteria2','tuic','http','socks5']" :key="protocol" :value="protocol">{{ protocol }}</option></select><NodeRegionSelect :model-value="query.region" label="筛选地区" :disabled="busy" @update:model-value="region => change({region})" /></div></div>
- <div class="table-scroll"><table class="node-table">
-  <thead><tr>
-   <th v-if="allowSelection" class="selection-cell"><input type="checkbox" aria-label="全选本页手动节点" title="全选本页手动节点" :checked="allSelected" :indeterminate="pageSelected > 0 && !allSelected" :disabled="busy || !selectable.length || (!allSelected && pageExceedsLimit)" @change="emit('togglePage', ($event.target as HTMLInputElement).checked)"></th>
-   <th>节点名称</th><th>{{ localOnly ? '来源分组' : '来源' }}</th><th>协议</th><th>地区提示</th><th>操作</th>
+ <div class="table-scroll"><table ref="nodeTable" class="node-table">
+  <thead :class="{ 'manual-table-head': localOnly }"><tr>
+   <th v-if="allowSelection" scope="col" class="selection-cell"><input type="checkbox" aria-label="全选本页手动节点" title="全选本页手动节点" :checked="allSelected" :indeterminate="pageSelected > 0 && !allSelected" :disabled="busy || !selectable.length || (!allSelected && pageExceedsLimit)" @change="emit('togglePage', ($event.target as HTMLInputElement).checked)"></th>
+   <th scope="col">节点名称</th><th scope="col">{{ localOnly ? '来源分组' : '来源' }}</th><th scope="col">协议</th><th scope="col">地区提示</th><th scope="col">操作</th>
   </tr></thead>
   <tbody><tr v-for="node in nodes.items" :key="node.id" :class="{'selected-row': allowSelection && selectedIds?.has(node.id)}">
    <td v-if="allowSelection" class="selection-cell"><input type="checkbox" :aria-label="`选择节点 ${node.originalName}`" :checked="selectedIds?.has(node.id) ?? false" :disabled="selectionDisabled(node)" @change="emit('toggleSelection', node)"></td>
