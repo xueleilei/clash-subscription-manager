@@ -22,7 +22,7 @@ function value(event: Event) { return (event.target as HTMLSelectElement).value 
 </script>
 <style scoped>.source-cell{max-width:220px;overflow-wrap:anywhere}</style>
 <template><section class="panel"><div class="node-filters"><form class="search-form" @submit.prevent="change({name: keyword})"><input v-model="keyword" aria-label="搜索节点名称" placeholder="搜索节点名称"><ElButton native-type="submit">搜索</ElButton></form><div class="filter-selects" :class="{'local-filters': localOnly}"><select v-if="!localOnly" :value="query.sourceId" aria-label="筛选来源" @change="change({sourceId: value($event)})"><option value="">全部来源</option><option value="__LOCAL__">本地节点</option><option v-for="source in sources" :key="source.id" :value="source.id">{{ source.name }}</option></select><select :value="query.protocol" aria-label="筛选协议" @change="change({protocol: value($event)})"><option value="">全部协议</option><option v-for="protocol in ['ss','ssr','vmess','vless','trojan','hysteria2','tuic','http','socks5']" :key="protocol" :value="protocol">{{ protocol }}</option></select><NodeRegionSelect :model-value="query.region" label="筛选地区" :disabled="busy" @update:model-value="region => change({region})" /></div></div>
- <div class="scroll-area"><table class="node-table">
+ <div class="table-scroll"><table class="node-table">
   <thead><tr>
    <th v-if="allowSelection" class="selection-cell"><input type="checkbox" aria-label="全选本页手动节点" title="全选本页手动节点" :checked="allSelected" :indeterminate="pageSelected > 0 && !allSelected" :disabled="busy || !selectable.length || (!allSelected && pageExceedsLimit)" @change="emit('togglePage', ($event.target as HTMLInputElement).checked)"></th>
    <th>节点名称</th><th>{{ localOnly ? '来源分组' : '来源' }}</th><th>协议</th><th>地区提示</th><th>操作</th>

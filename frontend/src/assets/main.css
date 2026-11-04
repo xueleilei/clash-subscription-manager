@@ -160,6 +160,7 @@ th, td { padding: 12px; border-bottom: 1px solid var(--line-soft); text-align: l
 th { color: var(--muted); background: #132132; font-size: 11px; font-weight: 550; }
 tbody tr:hover { background: #152638; }
 .scroll-area { overflow: auto; overscroll-behavior: contain; }
+.table-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
 
 @media (max-width: 1000px) {
   .app-layout { grid-template-columns: 178px minmax(0, 1fr); }
