@@ -2,6 +2,7 @@
 import { markRaw, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { basicSetup, EditorView } from 'codemirror'
 import { yaml } from '@codemirror/lang-yaml'
+import { editorTheme } from '../../components/editorTheme'
 import { ElButton } from 'element-plus'
 import DiagnosticsList from '../../components/DiagnosticsList.vue'
 import type { Diagnostic } from '../../types/domain'
@@ -9,7 +10,7 @@ const props = defineProps<{ modelValue: string; diagnostics: readonly Diagnostic
 const emit = defineEmits<{ 'update:modelValue': [value:string]; validate: []; manage: [page:'groups'|'rules'|'providers'] }>()
 const host = shallowRef<HTMLDivElement | null>(null), editor = shallowRef<EditorView | null>(null)
 let applyingExternal = false
-onMounted(() => { editor.value = markRaw(new EditorView({parent:host.value!,doc:props.modelValue,extensions:[basicSetup,yaml(),EditorView.lineWrapping,EditorView.contentAttributes.of({'aria-label':'基础 YAML 编辑器'}),EditorView.updateListener.of(update=>{if(update.docChanged&&!applyingExternal)emit('update:modelValue',update.state.doc.toString())}),EditorView.theme({'&':{fontSize:'13px'},'.cm-scroller':{minHeight:'420px',maxHeight:'65vh',overflow:'auto'},'.cm-content':{fontFamily:'ui-monospace, SFMono-Regular, monospace'},'&.cm-focused':{outline:'2px solid #278b7c'}})]})) })
+onMounted(() => { editor.value = markRaw(new EditorView({parent:host.value!,doc:props.modelValue,extensions:[basicSetup,yaml(),editorTheme,EditorView.lineWrapping,EditorView.contentAttributes.of({'aria-label':'基础 YAML 编辑器'}),EditorView.updateListener.of(update=>{if(update.docChanged&&!applyingExternal)emit('update:modelValue',update.state.doc.toString())}),EditorView.theme({'.cm-scroller':{minHeight:'420px',maxHeight:'65vh',overflow:'auto'}})]})) })
 watch(()=>props.modelValue,value=>{const view=editor.value;if(view&&view.state.doc.toString()!==value){applyingExternal=true;try{view.dispatch({changes:{from:0,to:view.state.doc.length,insert:value}})}finally{applyingExternal=false}}})
 onBeforeUnmount(()=>{editor.value?.destroy();editor.value=null})
 </script>

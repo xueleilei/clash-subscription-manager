@@ -1,6 +1,6 @@
 # 前端结构与本地验证
 
-使用 Vue Composition API、TypeScript 和 `<script setup>`。正式界面沿用已确认的 A 三栏工作台，颜色和间距基于设计截图。组件通过 props/emit 传递数据，业务请求与异步状态放在 composable。
+使用 Vue Composition API、TypeScript 和 `<script setup>`。界面采用 A 三栏工作台和深蓝、冰青配色。公共颜色在 `frontend/src/assets/main.css` 中维护，规则文本与基础 YAML 共用 `frontend/src/components/editorTheme.ts` 中的编辑器主题。组件通过 props/emit 传递数据，业务请求与异步状态放在 composable。
 
 | 组件或模块 | 职责与边界 |
 | --- | --- |

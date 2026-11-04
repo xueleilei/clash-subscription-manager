@@ -76,4 +76,4 @@ function submit() {
   <div class="dialog-actions"><ElButton :disabled="busy" @click="emit('cancel')">取消</ElButton><ElButton native-type="submit" type="primary" :loading="busy">保存节点</ElButton></div>
  </form>
 </template>
-<style scoped>fieldset{display:grid;gap:16px;border:0;margin:0;padding:0;min-width:0}.parameter-tabs{display:flex;gap:8px}.parameter-tabs button{background:#f5f8f6;border:1px solid var(--line);border-radius:6px;padding:7px 14px}.parameter-tabs button[aria-pressed=true]{background:#eaf4f0;color:var(--accent);border-color:var(--accent)}textarea{font-family:monospace;font-size:12px}.node-form .dialog-actions{margin-top:4px}</style>
+<style scoped>fieldset{display:grid;gap:16px;border:0;margin:0;padding:0;min-width:0}.parameter-tabs{display:flex;gap:8px}.parameter-tabs button{background:var(--surface-raised);border:1px solid var(--line);border-radius:6px;padding:7px 14px}.parameter-tabs button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}textarea{font-family:monospace;font-size:12px}.node-form .dialog-actions{margin-top:4px}</style>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 200" fill="none">
+  <defs>
+    <radialGradient id="halo">
+      <stop stop-color="#29839c" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#183b63" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sphere" cx=".27" cy=".18" r=".96" gradientUnits="objectBoundingBox">
+      <stop stop-color="#24667e"/><stop offset=".55" stop-color="#12435b"/><stop offset="1" stop-color="#102538"/>
+    </radialGradient>
+    <pattern id="land" width="4.3" height="4.3" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#9beae9"/>
+    </pattern>
+    <clipPath id="disc"><circle r="71"/></clipPath>
+    <g id="contact"><circle r="7" stroke="#77f1e4" stroke-opacity=".55"/><circle r="2.6" fill="#b6ffed"/></g>
+  </defs>
+  <ellipse cx="258" cy="102" rx="184" ry="108" fill="url(#halo)"/>
+  <g stroke="#6290ad" stroke-width=".8" opacity=".5">
+    <path d="M18 101h65m293 0h65M258 7v9m0 166v11" stroke-dasharray="3 5"/>
+    <path d="M48 98v6m14-6v6m14-6v6m321-6v6m14-6v6m14-6v6"/>
+    <ellipse cx="258" cy="101" rx="91" ry="91" stroke-dasharray="1 5"/>
+  </g>
+  <ellipse cx="258" cy="101" rx="157" ry="40" transform="rotate(-19 258 101)" stroke="#5cabbe" stroke-width="1.2"/>
+  <g transform="translate(258 101) rotate(-14)">
+    <circle r="71" fill="url(#sphere)" stroke="#91e4e6" stroke-width="1.3"/>
+    <g clip-path="url(#disc)">
+      <g stroke="#82d0d6" stroke-width=".7" opacity=".57">
+        <ellipse rx="26" ry="71"/><ellipse rx="53" ry="71"/><path d="M0-71V71"/>
+        <path d="M-71 0Q0 25 71 0M-69-22Q0 1 69-22M-61-42Q0-25 61-42M-44-58Q0-48 44-58M-68 21Q0 45 68 21M-58 41Q0 59 58 41M-42 57Q0 69 42 57"/>
+      </g>
+      <g fill="url(#land)">
+        <path d="m-69-22 13-19 16-7 9 4 7-5 9 4 3 7-10 6-4 8-11 4-4 7-9-5-5 2-2 9-5-7-6 2zm32 30 13 2 9 9 12 5-1 8-8 8-5 14-10 9-3-15 1-11-7-6-6-11z"/>
+        <path d="m-9-57 9-5 8 3-5 11-9 5-5-5zm15 22 11-8 8 3 8-6 16 2 13 10 15 4 4 17-9 10-9-4-11 4-5 12-7-8-5-10-11 3-8-5-12 2-4-6 8-7zm2 28 16 2 10 10-3 13-9 12-7-3-2-11-9-9zm41 38 12-5 9 7-2 7-8 7-12-3z"/>
+      </g>
+      <path d="M-43-20Q0-52 38-13Q13-5-9 26" stroke="#98f8df" stroke-width="1.4"/>
+      <g fill="#c7fff1"><circle cx="-43" cy="-20" r="2.1"/><circle cx="38" cy="-13" r="2.1"/><circle cx="-9" cy="26" r="2.1"/></g>
+    </g>
+  </g>
+  <path d="M110 152c7 19 75 7 157-21 80-28 143-65 139-81" stroke="#97f6e3" stroke-width="1.5"/>
+  <use href="#contact" x="139" y="156"/><use href="#contact" x="381" y="77"/>
+  <g stroke="#85b8c8" stroke-width=".8" opacity=".72"><path d="m136 161-9 12H91m258-108 19-27h33"/></g>
+  <g fill="#a5ccd7" font-family="monospace" font-size="8" letter-spacing="1.3"><text x="88" y="187">RX</text><text x="381" y="34">TX</text></g>
+</svg>

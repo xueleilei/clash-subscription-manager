@@ -1,5 +1,4 @@
-import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
-import { tags } from '@lezer/highlight'
+import { StreamLanguage } from '@codemirror/language'
 
 type Style = 'keyword' | 'string' | 'variableName' | 'modifier' | 'comment' | 'punctuation'
 interface Span { from: number; to: number; style: Style }
@@ -73,7 +72,7 @@ function lineSpans(line: string): Span[] {
  return spans.sort((a, b) => a.from - b.from)
 }
 
-const language = StreamLanguage.define<State>({
+export const clashRuleLanguage = StreamLanguage.define<State>({
  name: 'Clash rules',
  startState: () => ({ spans: [], index: 0 }),
  token(stream, state) {
@@ -86,14 +85,3 @@ const language = StreamLanguage.define<State>({
  },
  languageData: { commentTokens: { line: '#' } },
 })
-
-const colors = HighlightStyle.define([
- { tag: tags.keyword, color: '#245ba8', fontWeight: '600' },
- { tag: tags.string, color: '#8b5418' },
- { tag: tags.variableName, color: '#0b766a' },
- { tag: tags.modifier, color: '#7e42a0' },
- { tag: tags.comment, color: '#60766c', fontStyle: 'italic' },
- { tag: tags.punctuation, color: '#697886' },
-], { scope: language })
-
-export const clashRuleLanguage = () => [language, syntaxHighlighting(colors)]

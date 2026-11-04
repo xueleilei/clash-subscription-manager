@@ -24,5 +24,5 @@ const choices = computed(() => {
  </section>
 </template>
 <style scoped>
-.group-bar{display:grid;gap:10px;padding:12px 16px;margin-bottom:16px}.group-choices{display:flex;gap:8px;flex-wrap:wrap;max-height:155px;overflow:auto;padding:3px}.group-choice{display:inline-flex;align-items:center;gap:7px;max-width:100%;border:1px solid var(--line);border-radius:7px;padding:4px 10px;color:#41534f;background:#fff}.group-choice span{overflow-wrap:anywhere}.group-choice small{font-variant-numeric:tabular-nums;color:#596e69}.group-choice[aria-pressed=true]{border-color:#88b8b0;background:#eaf4f0;color:#155b51;font-weight:600}.group-choice[aria-pressed=true] small{color:inherit}
+.group-bar{display:grid;gap:10px;padding:12px 16px;margin-bottom:16px}.group-choices{display:flex;gap:8px;flex-wrap:wrap;max-height:155px;overflow:auto;padding:3px}.group-choice{display:inline-flex;align-items:center;gap:7px;max-width:100%;border:1px solid var(--line);border-radius:7px;padding:4px 10px;color:var(--text);background:var(--field)}.group-choice span{overflow-wrap:anywhere}.group-choice small{font-variant-numeric:tabular-nums;color:var(--muted)}.group-choice[aria-pressed=true]{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent);font-weight:600}.group-choice[aria-pressed=true] small{color:inherit}
 </style>
