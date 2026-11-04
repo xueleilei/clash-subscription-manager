@@ -24,6 +24,7 @@ ID 使用 UUID 字符串；版本使用十进制字符串，前端不转成 Numb
 | 来源明文凭据（显式操作） | GET `/sources/{id}/credentials`，no-store |
 | 节点查询/明文参数 | GET `/nodes?name=&sourceId=&protocol=&region=&page=&size=`，GET `/nodes/{id}/connection` |
 | 节点地区选项 | GET `/nodes/regions`，返回配置顺序的 `[{name,regions:[{code,name}]}]`；节点查询按两位地区代码或 `UNKNOWN` 筛选 |
+| 手动节点地区 | POST `/local-nodes`、PUT `/local-nodes/{id}`、POST `/local-nodes/batch` 支持字段 `regionOverride`。值可为当前地区代码、`UNKNOWN` 或 `AUTO`。省略或 null 表示新增时自动识别，编辑时沿用原设置。GET `/local-nodes/{id}` 返回已选代码，自动识别时返回 null。列表中的 `region` 为实际筛选值 |
 | 手动节点来源分组 | GET `/local-node-groups` 返回 `{groups:[{id,name,version,nodeCount}],ungroupedCount}`。POST 同路径 `{name}` 创建；PATCH `/local-node-groups/{id}` 提交 `{name,expectedVersion}` 重命名；DELETE 同路径带 `?expectedVersion=` 删除分组并保留节点。创建/重命名返回 `{id,name,version}` |
 | 分组筛选与移动 | GET `/nodes?localGroupId={id}` 或 `/nodes?ungrouped=true`，支持原有搜索与分页。PUT `/local-node-groups/{id}/members` 或 `/local-node-groups/ungrouped/members`，提交 `{ids:[...]}` 一次移动 1–500 个本账号的手动节点 |
 | 添加到来源分组 | POST `/local-nodes` 和 POST `/local-nodes/batch` 可在原请求体中附加 `localGroupId`；省略或 null 为未分组。批量预览不写入，确认时检查目标归属并与节点一起提交。编辑已有节点参数保留来源分组；用移动接口单独修改归属 |

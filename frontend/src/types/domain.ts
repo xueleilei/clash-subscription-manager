@@ -19,11 +19,11 @@ export interface LocalNodeGroupDirectory { groups: LocalNodeGroup[]; ungroupedCo
 export interface NodeSummary { id: Id; sourceId: Id | null; originalName: string; protocol: string; region: string | null; snapshotVersion: Version; localGroupId?: Id | null; localGroupName?: string | null }
 export interface NodeRegionGroup { name: string; regions: { code: string; name: string }[] }
 export interface NodeSpec extends Pick<NodeSummary, 'id' | 'sourceId' | 'originalName' | 'protocol'> { connection: JsonObject; dialerRef: TargetRef | null }
-export interface LocalNodeCommand { expectedVersion?: Version; name: string; protocol: string; connection: JsonObject; dialerRef: TargetRef | null }
-export interface LocalNodeView { node: NodeSpec; version: Version; affectedProfiles: Id[]; publishedProfiles: Id[] }
+export interface LocalNodeCommand { expectedVersion?: Version; name: string; protocol: string; connection: JsonObject; dialerRef: TargetRef | null; regionOverride?: string | null }
+export interface LocalNodeView { node: NodeSpec; version: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; regionOverride?: string | null }
 export interface LocalNodeResult { id: Id; version: Version; affectedProfiles: Id[] }
 export interface LocalNodeBatchPreview { ownerRevision: Version; nodes: LocalNodeCommand[] }
-export interface LocalNodeBatchCommand { text: string; ownerRevision: Version }
+export interface LocalNodeBatchCommand { text: string; ownerRevision: Version; regionOverride?: string }
 export interface LocalNodeBatchResult { ids: Id[]; affectedProfiles: Id[] }
 export interface LocalNodeRemoval { id: Id; version: Version; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: Id[] }
 export interface LocalNodeBatchRemoval { nodes: { id: Id; name: string; version: Version }[]; ownerRevision: Version; affectedProfiles: Id[]; publishedProfiles: Id[]; dependentNodes: { id: Id; name: string }[] }

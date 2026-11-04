@@ -51,7 +51,7 @@ async function write(method: 'POST' | 'PUT' | 'DELETE', path: string, body: unkn
   if (current !== sequence || disposed) return
   const affected = result.affectedProfiles.map(id => names.value.get(id) ?? id).join('、')
   const folder = selection.value?.kind === 'create' ? groups.value.find(g => g.id === targetGroup.value)?.name ?? '未分组' : null
-  clear(); notice.value = affected ? `已更新相关方案草稿：${affected}。请检查后手动发布，现有订阅保持已发布版本。` : '节点池已更新。将节点加入方案代理组后，检查并手动发布。'
+  clear(); notice.value = affected ? `已更新相关方案草稿：${affected}。请检查后手动发布，现有订阅保持已发布版本。` : '节点池已更新。'
   if (folder) notice.value = ('ids' in result ? `已导入 ${result.ids.length} 个手动节点` : '已添加节点') + `到「${folder}」。将节点加入方案代理组，检查后手动发布。`
   emit('changed', result)
   try { await profiles.reload() } catch { if (!disposed) notice.value += ' 方案状态读取失败，请重新读取。' }

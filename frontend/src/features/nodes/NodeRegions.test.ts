@@ -2,10 +2,21 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ManualNodesPanel from './ManualNodesPanel.vue'
 import NodePicker from '../workspace/NodePicker.vue'
+import NodeRegionSelect from './NodeRegionSelect.vue'
 import { mockApi, reply } from '../../test/http'
 
 afterEach(() => { vi.unstubAllGlobals(); document.body.innerHTML = '' })
 const nodeRegions = [{name: '自定义分组', regions: [{code: 'MO', name: '澳门'}, {code: 'XZ', name: '自定义地区'}]}]
+
+test('a retired manual region remains visible until a new choice is made from the current catalog', async () => {
+ mockApi(path => { throw new Error(path) }, { nodeRegions })
+ const view = mount(NodeRegionSelect, { props: { modelValue: 'XY', label: '节点地区', assignment: true } })
+ const select = view.get<HTMLSelectElement>('select')
+ await expect.poll(() => select.element.selectedOptions[0]?.text).toBe('XY（已移出地区配置）')
+ expect(view.emitted('update:modelValue')).toBeUndefined()
+ await select.setValue('XZ')
+ expect(view.emitted('update:modelValue')?.[0]).toEqual(['XZ'])
+})
 
 test('manual node filters follow the server catalog, including entries absent from the current page', async () => {
  const queries: URLSearchParams[] = []

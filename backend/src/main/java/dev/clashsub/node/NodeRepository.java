@@ -46,12 +46,15 @@ public class NodeRepository {
         return Map.copyOf(result);
     }
     @Transactional(propagation = Propagation.MANDATORY)
-    public void updateLocal(UUID owner, NodeSpec node, long expected) {
-        if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
-        var key = NodeIdentity.key(node.id(), node.originalName());
-        var row = new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
-                regions.fromName(node.originalName()), expected + 1, documents.write(node, context(owner.toString(), node.id().toString())));
-        if (mapper.updateLocal(row, expected) != 1) { throw ApiException.conflict(); }
+    public void updateLocal(UUID owner, NodeSpec node, long expected, String regionOverride) {
+        if (mapper.updateLocal(localRow(owner, node, expected + 1, regionOverride), expected) != 1) { throw ApiException.conflict(); }
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void updateLocalRegion(UUID owner, NodeSpec node, long expected, String regionOverride) {
+        String region = regions.effectiveRegion(node.originalName(), regionOverride);
+        if (mapper.updateLocalRegion(owner.toString(), node.id().toString(), expected, region, regionOverride) != 1) {
+            throw ApiException.conflict();
+        }
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void deleteLocal(UUID owner, UUID id, long expected) {
@@ -83,14 +86,18 @@ public class NodeRepository {
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void insertLocal(UUID owner, NodeSpec node) {
-        insertLocal(owner, node, null);
+        insertLocal(owner, node, null, null);
     }
     @Transactional(propagation = Propagation.MANDATORY)
-    public void insertLocal(UUID owner, NodeSpec node, UUID groupId) {
+    public void insertLocal(UUID owner, NodeSpec node, UUID groupId, String regionOverride) {
+        mapper.insert(localRow(owner, node, 0, regionOverride), groupId == null ? null : groupId.toString());
+    }
+    private NodeDO localRow(UUID owner, NodeSpec node, long version, String regionOverride) {
         if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
         var key = NodeIdentity.key(node.id(), node.originalName());
-        mapper.insert(new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
-                regions.fromName(node.originalName()), 0, documents.write(node, context(owner.toString(), node.id().toString()))), groupId == null ? null : groupId.toString());
+        return new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
+                regions.effectiveRegion(node.originalName(), regionOverride), regionOverride, version,
+                documents.write(node, context(owner.toString(), node.id().toString())));
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void detachSource(UUID owner, UUID source) {
@@ -134,7 +141,7 @@ public class NodeRepository {
             var previous = byId.get(node.id().toString());
             if (previous != null && !previous.originalName().equals(node.originalName())) { throw ApiException.conflict(); }
             var row = new NodeDO(node.id().toString(), owner.toString(), source.toString(), key.nameHash(), node.originalName(),
-                    node.protocol(), regions.fromName(node.originalName()), snapshot, documents.write(node, context(owner.toString(), node.id().toString())));
+                    node.protocol(), regions.fromName(node.originalName()), null, snapshot, documents.write(node, context(owner.toString(), node.id().toString())));
             if (previous == null) { mapper.insert(row, null); }
             else if (mapper.update(row) != 1) { throw ApiException.conflict(); }
         }

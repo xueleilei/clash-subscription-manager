@@ -40,6 +40,15 @@ public final class RegionCatalog {
     }
     public List<Group> groups() { return groups; }
 
+    public boolean supports(String code) {
+        return code != null && (codes.contains(code) || UNKNOWN.equals(code));
+    }
+
+    public String effectiveRegion(String name, String override) {
+        if (override == null) { return fromName(name); }
+        return supports(override) ? override : UNKNOWN;
+    }
+
     public static RegionCatalog fromYaml(String yaml) {
         var root = new SafeYaml().load(yaml).value();
         fields(root, Set.of("groups"), "$");

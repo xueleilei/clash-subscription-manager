@@ -3,6 +3,7 @@ package dev.clashsub.node;
 import dev.clashsub.common.*;
 import dev.clashsub.importer.DocumentNodeReferences;
 import dev.clashsub.parse.ProtocolFieldValidator;
+import dev.clashsub.parse.RegionCatalog;
 import dev.clashsub.profile.*;
 import dev.clashsub.release.ReleaseRepository;
 import dev.clashsub.release.ReleaseService;
@@ -27,11 +28,13 @@ public class LocalNodeService {
     private final ReleaseRepository releases;
     private final LocalNodeCommitter committer;
     private final ReferenceReconciler reconciler;
+    private final RegionCatalog regions;
     public LocalNodeService(OwnerSnapshotReader snapshots, NodeRepository nodes, LocalNodeInputParser parser,
             ProtocolFieldValidator fields, ReleaseService publisher, ReleaseRepository releases,
-            LocalNodeCommitter committer, ReferenceReconciler reconciler) {
+            LocalNodeCommitter committer, ReferenceReconciler reconciler, RegionCatalog regions) {
         this.snapshots = snapshots; this.nodes = nodes; this.parser = parser; this.fields = fields;
         this.publisher = publisher; this.releases = releases; this.committer = committer; this.reconciler = reconciler;
+        this.regions = regions;
     }
     public LocalNodeCommand parse(UUID owner, String text) {
         var parsed = parser.parse(text); TargetRef dialer = null;
@@ -55,10 +58,11 @@ public class LocalNodeService {
                 .map(node -> new LocalNodeCommand(null, node.originalName(), node.protocol(), node.connection(), node.dialerRef())).toList());
     }
     @Transactional(propagation = Propagation.NEVER)
-    public LocalNodeBatchResult saveBatch(UUID owner, String text, Long ownerRevision, UUID localGroupId) {
+    public LocalNodeBatchResult saveBatch(UUID owner, String text, Long ownerRevision, UUID localGroupId, String requestedRegion) {
         var before = snapshots.read(owner);
         if (ownerRevision == null || ownerRevision != before.dataRevision()) { throw ApiException.conflict(); }
-        return committer.saveBatch(before, prepareBatch(before, text), localGroupId);
+        String regionOverride = selectRegion(requestedRegion, null);
+        return committer.saveBatch(before, prepareBatch(before, text), localGroupId, regionOverride);
     }
     private List<NodeSpec> prepareBatch(OwnerSnapshot before, String text) {
         var parsed = parser.parseAll(text);
@@ -87,7 +91,7 @@ public class LocalNodeService {
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LocalNodeView view(UUID owner, UUID id) {
         var row = nodes.requireLocal(owner, id); var snapshot = snapshots.read(owner);
-        return new LocalNodeView(snapshot.nodes().get(id), Long.toString(row.snapshotVersion()), affected(snapshot, id), published(snapshot, id));
+        return new LocalNodeView(snapshot.nodes().get(id), Long.toString(row.snapshotVersion()), affected(snapshot, id), published(snapshot, id), row.regionOverride());
     }
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LocalNodeRemoval removal(UUID owner, UUID id) {
@@ -98,10 +102,13 @@ public class LocalNodeService {
     @Transactional(propagation = Propagation.NEVER)
     public LocalNodeResult save(UUID owner, UUID id, LocalNodeCommand input) {
         if (id == null && input.expectedVersion() != null) { throw ApiException.invalid("新节点不能设置期望版本"); }
+        NodeDO previous = null;
         if (id != null) {
             if (input.localGroupId() != null) { throw ApiException.invalid("请从手动节点列表移动分组"); }
-            checkVersion(nodes.requireLocal(owner, id), input.expectedVersion());
+            previous = nodes.requireLocal(owner, id);
+            checkVersion(previous, input.expectedVersion());
         }
+        String regionOverride = selectRegion(input.regionOverride(), previous == null ? null : previous.regionOverride());
         var before = snapshots.read(owner);
         UUID nodeId = id == null ? UUID.randomUUID() : id;
         if (input.connection() == null) { throw ApiException.invalid("请提供节点连接参数"); }
@@ -110,21 +117,30 @@ public class LocalNodeService {
         for (String reserved : List.of("name", "type", "dialer-proxy")) {
             if (connection.has(reserved)) { throw invalid("connection." + reserved, "此字段请通过名称、协议或链式代理选项维护"); }
         }
+        var dialer = input.dialerRef();
+        var node = new NodeSpec(nodeId, null, input.name(), input.protocol(), connection, dialer);
+        if (previous != null && input.regionOverride() != null && node.equals(before.nodes().get(id))) {
+            return committer.saveRegion(owner, node, previous.snapshotVersion(), regionOverride);
+        }
         var value = connection.deepCopy().put("name", input.name()).put("type", input.protocol());
         var validation = fields.validate(value, "node");
         if (!validation.valid()) { throw new ApiValidationException(validation); }
-        var dialer = input.dialerRef();
         if (dialer != null) {
             if (!Set.of(TargetRef.Kind.NODE, TargetRef.Kind.DIRECT, TargetRef.Kind.REJECT).contains(dialer.kind())) { throw invalid("dialerRef", "链式代理必须选择节点、DIRECT 或 REJECT"); }
             if (dialer.kind() == TargetRef.Kind.NODE && before.nodes().get(dialer.id()) == null && !nodeId.equals(dialer.id())) { throw ApiException.missing(); }
         }
-        var node = new NodeSpec(nodeId, null, input.name(), input.protocol(), connection, dialer);
         var catalog = new LinkedHashMap<>(before.nodes().nodes()); catalog.put(nodeId, node);
         var candidate = new OwnerSnapshot(owner, before.dataRevision(), before.sources(), new NodeCatalog(catalog), before.profiles());
         validateNodes(List.of(nodeId), candidate);
         var drafts = new LinkedHashMap<UUID, ProfileDocument>();
         if (id != null) { affected(before, id).forEach(profile -> drafts.put(profile, before.profiles().get(profile).draft().document())); }
-        return committer.save(before, node, input.expectedVersion(), drafts, input.localGroupId());
+        return committer.save(before, node, input.expectedVersion(), drafts, input.localGroupId(), regionOverride);
+    }
+    private String selectRegion(String requested, String previous) {
+        if (requested == null) { return previous; }
+        if ("AUTO".equals(requested)) { return null; }
+        if (requested.equals(previous) || regions.supports(requested)) { return requested; }
+        throw ApiException.invalid("地区不在当前配置中，请重新选择");
     }
     @Transactional(propagation = Propagation.NEVER)
     public LocalNodeResult delete(UUID owner, UUID id, Long expectedVersion, Long ownerRevision) {

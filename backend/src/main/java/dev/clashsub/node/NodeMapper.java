@@ -10,7 +10,7 @@ public interface NodeMapper {
             String localGroupId, String localGroupName) { }
     @Select("SELECT source_id,COUNT(*) AS node_count FROM node WHERE owner_id=#{owner} AND is_active=1 AND source_id IS NOT NULL GROUP BY source_id")
     List<SourceCount> countsBySource(String owner);
-    String COLUMNS = "id,owner_id,source_id,name_hash,original_name,protocol,region,snapshot_version,connection_cipher";
+    String COLUMNS = "id,owner_id,source_id,name_hash,original_name,protocol,region,region_override,snapshot_version,connection_cipher";
     String FILTER = " WHERE n.owner_id=#{owner} AND n.is_active=1"
             + "<if test='source != null'> AND n.source_id=#{source}</if><if test='localOnly'> AND n.source_id IS NULL</if>"
             + "<if test='groupId != null'> AND n.local_group_id=#{groupId}</if><if test='ungrouped'> AND n.local_group_id IS NULL</if>"
@@ -18,7 +18,7 @@ public interface NodeMapper {
             + "<if test='name != null'> AND LOWER(n.original_name) LIKE #{name} ESCAPE '='</if>";
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND id=#{id} AND is_active=1")
     NodeDO find(@Param("owner") String owner, @Param("id") String id);
-    @Select("<script>SELECT id,owner_id,source_id,name_hash,original_name,protocol,region,snapshot_version,NULL AS connection_cipher FROM node WHERE owner_id=#{owner} AND source_id IS NULL AND is_active=1 AND id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> ORDER BY id</script>")
+    @Select("<script>SELECT id,owner_id,source_id,name_hash,original_name,protocol,region,region_override,snapshot_version,NULL AS connection_cipher FROM node WHERE owner_id=#{owner} AND source_id IS NULL AND is_active=1 AND id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> ORDER BY id</script>")
     List<NodeDO> findLocalBatch(@Param("owner") String owner, @Param("ids") List<String> ids);
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND is_active=1 ORDER BY id")
     List<NodeDO> all(String owner);
@@ -33,8 +33,8 @@ public interface NodeMapper {
     @Select("<script>SELECT COUNT(*) FROM node n" + FILTER + "</script>")
     long count(@Param("owner") String owner, @Param("source") String source, @Param("protocol") String protocol, @Param("region") String region,
             @Param("name") String name, @Param("localOnly") boolean localOnly, @Param("groupId") String groupId, @Param("ungrouped") boolean ungrouped);
-    @Insert("INSERT INTO node(id,owner_id,source_id,name_hash,original_name,protocol,region,snapshot_version,connection_cipher,local_group_id)"
-            + " VALUES(#{n.id},#{n.ownerId},#{n.sourceId},#{n.nameHash},#{n.originalName},#{n.protocol},#{n.region},#{n.snapshotVersion},#{n.connectionCipher},#{groupId})")
+    @Insert("INSERT INTO node(id,owner_id,source_id,name_hash,original_name,protocol,region,region_override,snapshot_version,connection_cipher,local_group_id)"
+            + " VALUES(#{n.id},#{n.ownerId},#{n.sourceId},#{n.nameHash},#{n.originalName},#{n.protocol},#{n.region},#{n.regionOverride},#{n.snapshotVersion},#{n.connectionCipher},#{groupId})")
     int insert(@Param("n") NodeDO row, @Param("groupId") String groupId);
     @Update("UPDATE node SET is_active=1,original_name=#{originalName},name_hash=#{nameHash},protocol=#{protocol},region=#{region},snapshot_version=#{snapshotVersion},connection_cipher=#{connectionCipher} WHERE id=#{id} AND owner_id=#{ownerId} AND source_id=#{sourceId}")
     int update(NodeDO row);
@@ -48,8 +48,14 @@ public interface NodeMapper {
     int wipeTombstone(@Param("owner") String owner, @Param("id") String id, @Param("cipher") String cipher);
     @Update("UPDATE node SET source_id=NULL,snapshot_version=0,connection_cipher=#{cipher} WHERE owner_id=#{owner} AND id=#{id} AND source_id=#{source} AND is_active=1")
     int detach(@Param("owner") String owner, @Param("source") String source, @Param("id") String id, @Param("cipher") String cipher);
-    @Update("UPDATE node SET original_name=#{row.originalName},name_hash=#{row.nameHash},protocol=#{row.protocol},region=#{row.region},snapshot_version=snapshot_version+1,connection_cipher=#{row.connectionCipher} WHERE owner_id=#{row.ownerId} AND id=#{row.id} AND source_id IS NULL AND is_active=1 AND snapshot_version=#{expected}")
+    @Update("UPDATE node SET original_name=#{row.originalName},name_hash=#{row.nameHash},protocol=#{row.protocol},region=#{row.region},region_override=#{row.regionOverride},snapshot_version=snapshot_version+1,connection_cipher=#{row.connectionCipher} WHERE owner_id=#{row.ownerId} AND id=#{row.id} AND source_id IS NULL AND is_active=1 AND snapshot_version=#{expected}")
     int updateLocal(@Param("row") NodeDO row, @Param("expected") long expected);
+    @Update("""
+            UPDATE node SET region=#{region},region_override=#{override},snapshot_version=snapshot_version+1
+            WHERE owner_id=#{owner} AND id=#{id} AND source_id IS NULL AND is_active=1 AND snapshot_version=#{expected}
+            """)
+    int updateLocalRegion(@Param("owner") String owner, @Param("id") String id, @Param("expected") long expected,
+            @Param("region") String region, @Param("override") String override);
     @Update("UPDATE node SET is_active=0,local_group_id=NULL,snapshot_version=snapshot_version+1 WHERE owner_id=#{owner} AND id=#{id} AND source_id IS NULL AND is_active=1 AND snapshot_version=#{expected}")
     int deleteLocal(@Param("owner") String owner, @Param("id") String id, @Param("expected") long expected);
 }

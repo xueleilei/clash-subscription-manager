@@ -69,6 +69,59 @@ class LocalNodeIT extends RefreshTestSupport {
         assertThat(ok(send("GET", "/nodes?region=AU&localOnly=true", null)).path("total").asInt()).isOne();
     }
 
+    @Test void manualRegionWinsOverTheNameAndCanBeResetWithoutChangingThePublishedNode() throws Exception {
+        var command = input("香港 fixture", "fixture-only").put("regionOverride", "US");
+        var created = ok(send("POST", "/local-nodes", command));
+        UUID id = UUID.fromString(created.path("id").asString());
+        String path = "/local-nodes/" + id;
+        assertThat(ok(send("GET", path, null)).path("regionOverride").asString()).isEqualTo("US");
+        assertThat(ok(send("GET", "/nodes?region=US&localOnly=true", null)).path("items").get(0).path("id")).isEqualTo(created.path("id"));
+        assertThat(ok(send("GET", "/nodes?region=HK", null)).path("total").asInt()).isZero();
+
+        var profile = profile("Region fixture", List.of(id), id);
+        long draftVersion = profiles.load(owner, profile).version();
+        String published = artifact(profile);
+        String cipher = nodes.requireLocal(owner, id).connectionCipher();
+        command.put("expectedVersion", created.path("version").asString()).put("regionOverride", "UNKNOWN");
+        var manual = ok(send("PUT", path, command));
+        assertThat(manual.path("affectedProfiles").size()).isZero();
+        assertThat(ok(send("GET", "/nodes?region=UNKNOWN", null)).path("total").asInt()).isOne();
+        assertThat(send("PUT", path, command.put("regionOverride", "AUTO")).statusCode()).isEqualTo(409);
+        command.put("expectedVersion", manual.path("version").asString());
+        var automatic = ok(send("PUT", path, command));
+        assertThat(ok(send("GET", path, null)).path("regionOverride").isNull()).isTrue();
+        assertThat(ok(send("GET", "/nodes?region=HK", null)).path("total").asInt()).isOne();
+        assertThat(profiles.load(owner, profile).version()).isEqualTo(draftVersion);
+        assertThat(profileRow(profile).path("hasUnpublishedNodeChanges").asBoolean()).isFalse();
+        assertThat(artifact(profile)).isEqualTo(published);
+        assertThat(nodes.requireLocal(owner, id).connectionCipher()).isEqualTo(cipher);
+
+        command.put("expectedVersion", automatic.path("version").asString()).put("regionOverride", "ZZ");
+        assertThat(send("PUT", path, command).statusCode()).isEqualTo(400);
+        assertThat(ok(send("GET", path, null)).path("version")).isEqualTo(automatic.path("version"));
+        var pinned = ok(send("PUT", path, command.put("regionOverride", "MO")));
+        ok(send("PUT", path, input("Japan fixture", "fixture-only").put("expectedVersion", pinned.path("version").asString())));
+        assertThat(ok(send("GET", "/nodes?region=MO", null)).path("total").asInt()).isOne();
+    }
+
+    @Test void batchImportsDefaultToIndividualRegionsOrUseTheExplicitRegionForAllNodes() throws Exception {
+        var batch = json.createObjectNode().put("text", yaml("香港 fixture", "Japan fixture"));
+        var preview = ok(send("POST", "/local-nodes/batch/preview", batch));
+        batch.put("ownerRevision", preview.path("ownerRevision").asString());
+        ok(send("POST", "/local-nodes/batch", batch));
+        assertThat(ok(send("GET", "/nodes?region=HK", null)).path("total").asInt()).isOne();
+        assertThat(ok(send("GET", "/nodes?region=JP", null)).path("total").asInt()).isOne();
+        preview = ok(send("POST", "/local-nodes/batch/preview", batch));
+        batch.put("ownerRevision", preview.path("ownerRevision").asString()).put("regionOverride", "FAKE");
+        assertThat(send("POST", "/local-nodes/batch", batch).statusCode()).isEqualTo(400);
+        assertThat(ok(send("GET", "/nodes?localOnly=true", null)).path("total").asInt()).isEqualTo(2);
+        var result = ok(send("POST", "/local-nodes/batch", batch.put("regionOverride", "US")));
+        assertThat(ok(send("GET", "/nodes?region=US", null)).path("total").asInt()).isEqualTo(2);
+        for (var id : result.path("ids")) {
+            assertThat(ok(send("GET", "/local-nodes/" + id.asString(), null)).path("regionOverride").asString()).isEqualTo("US");
+        }
+    }
+
     @Test void editingLocalParametersIsPinnedAcrossTwoRemoteRefreshesUntilManualPublication() throws Exception {
         var created = ok(send("POST", "/local-nodes", input("Local old name", "fixture-local-old")));
         UUID id = UUID.fromString(created.path("id").asString());
@@ -230,7 +283,7 @@ class LocalNodeIT extends RefreshTestSupport {
         var before = snapshots.read(owner);
         var connection = (ObjectNode) input("Rollback fixture", "fixture-only").path("connection");
         var repeated = new NodeSpec(UUID.randomUUID(), null, "Rollback fixture", "ss", connection, null);
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> localCommitter.saveBatch(before, List.of(repeated, repeated), null))
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> localCommitter.saveBatch(before, List.of(repeated, repeated), null, null))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
         assertThat(snapshots.read(owner)).isEqualTo(before);
     }
