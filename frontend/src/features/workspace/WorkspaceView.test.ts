@@ -7,10 +7,12 @@ import { createAppRouter } from '../../router'
 import { useSession } from '../auth/useSession'
 import { mockApi, reply, button } from '../../test/http'
 import { documentFixture, draftFixture, nodesFixture, profileFixture } from '../../test/fixtures'
-import type { ProfileDocument } from '../../types/domain'
+import type { NodeSummary, ProfileDocument } from '../../types/domain'
 afterEach(() => { vi.unstubAllGlobals(); document.body.innerHTML = '' })
-async function prepare(profileDocument = documentFixture(), withApp = false, unpublishedNodes = false) {
- const nodes = nodesFixture(), writes: ProfileDocument[] = []
+async function prepare({ nodes = nodesFixture(), withApp = false, unpublishedNodes = false }: {
+ nodes?: NodeSummary[]; withApp?: boolean; unpublishedNodes?: boolean
+} = {}) {
+ const profileDocument = documentFixture(), writes: ProfileDocument[] = []
  mockApi((path, method, body) => {
   if (path === '/session') return reply(method === 'GET' ? { id: owner, username: 'admin' } : null)
   if (path === '/profiles') return reply([{ ...profileFixture(), ...(unpublishedNodes ? { currentReleaseId: 'release-1', publishedVersion: '1', publishedDefinitionHash: 'hash-a', hasUnpublishedNodeChanges: true } : {}) }])
@@ -30,7 +32,7 @@ async function prepare(profileDocument = documentFixture(), withApp = false, unp
 function documentBody() { return document.body.textContent ?? '' }
 function nodeCheckbox(id: string) { return document.querySelector<HTMLInputElement>(`input[data-node-id="${id}"]`)! }
 test('local node changes show pending publication even when the profile definition is unchanged', async () => {
- await prepare(documentFixture(), false, true)
+ await prepare({ unpublishedNodes: true })
  await expect.poll(() => documentBody()).toContain('已保存待发布')
  expect(documentBody()).not.toContain('与已发布版本一致')
 })
@@ -47,6 +49,39 @@ test('cross-source selection persists across filters/pages and same node can joi
  button('加入当前组').click(); button('保存草稿').click(); await expect.poll(() => writes.length).toBe(1)
  expect(writes[0]!.groups[0]!.members.map(ref => ref.id)).toEqual(['n1', 'n2']); expect(writes[0]!.groups[1]!.members.map(ref => ref.id)).toEqual(['n1', 'n51'])
 })
+test('filters local candidates by their source group and keeps that label after adding a member', async () => {
+ const grouped = nodesFixture().map(n => ({ ...n, sourceId: null, localGroupId: 'tag', localGroupName: 'TAG' }))
+ const sameName = grouped[0]!
+ const { wrapper, writes } = await prepare({ nodes: [
+  ...grouped, { ...sameName, id: 'sjc', localGroupId: 'sjc-group', localGroupName: '联通SJC' },
+  { ...sameName, id: 'loose', localGroupId: null, localGroupName: null },
+  { ...sameName, id: 'remote', sourceId: 's1', localGroupId: null, localGroupName: null },
+ ] })
+ const source = wrapper.get('[aria-label="候选节点来源"]')
+ const groupSelector = '[aria-label="候选节点本地分组"]'
+ const visibleIds = () => wrapper.findAll('[data-node-id]').map(row => row.attributes('data-node-id'))
+ await source.setValue('__LOCAL__')
+ button('下一页候选节点').click()
+ await wrapper.get(groupSelector).setValue('sjc-group')
+ expect(visibleIds()).toEqual(['sjc'])
+ expect(nodeCheckbox('sjc').getAttribute('aria-label')).toContain('联通SJC')
+ await wrapper.get('[aria-label="候选节点地区"]').setValue('JP')
+ expect(visibleIds()).toEqual([])
+ await wrapper.get('[aria-label="候选节点地区"]').setValue('')
+ button('选择本页可用').click()
+ await wrapper.get(groupSelector).setValue('ungrouped')
+ expect(visibleIds()).toEqual(['loose'])
+ expect(nodeCheckbox('loose').getAttribute('aria-label')).toContain('未分组')
+ await source.setValue('s1')
+ expect(wrapper.find(groupSelector).exists()).toBe(false)
+ expect(visibleIds()).toEqual(['remote'])
+ button('加入当前组').click()
+ await expect.poll(() => wrapper.get('[data-member-row]').text()).toContain('联通SJC')
+ button('保存草稿').click()
+ await expect.poll(() => writes[0]?.groups[0]?.members.map(member => member.id)).toEqual(['sjc'])
+ await source.setValue('__LOCAL__')
+ expect((wrapper.get(groupSelector).element as HTMLSelectElement).value).toBe('')
+})
 test('members reorder/remove, nested groups reject cycles, and empty groups visibly fall back to REJECT', async () => {
  const { writes } = await prepare(); expect(documentBody()).toContain('空组 → REJECT')
  nodeCheckbox('n1').click(); nodeCheckbox('n2').click(); await expect.poll(() => button('加入当前组').disabled).toBe(false); button('加入当前组').click()
@@ -60,7 +95,7 @@ test('members reorder/remove, nested groups reject cycles, and empty groups visi
  expect(writes[0]!.groups[0]!.members.map(ref => `${ref.kind}:${ref.id}`)).toEqual(['NODE:n1', 'GROUP:g2'])
 })
 test('explicit logout warns about unsaved edits before ending the session', async () => {
- await prepare(documentFixture(), true)
+ await prepare({ withApp: true })
  nodeCheckbox('n1').click(); await expect.poll(() => button('加入当前组').disabled).toBe(false); button('加入当前组').click(); await expect.poll(() => documentBody()).toContain('未保存')
  button('退出登录').click(); await expect.poll(() => documentBody()).toContain('退出将丢失未保存内容')
  expect(useSession().status.value).toBe('authenticated'); button('继续编辑').click()
