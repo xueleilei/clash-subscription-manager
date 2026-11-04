@@ -17,7 +17,8 @@ async function login(credentials: Credentials) {
 </script>
 <template>
   <main class="login-page"><section class="login-card">
-    <div class="brand-mark" aria-hidden="true">≋</div><p class="eyebrow">YOUR CONNECTIONS</p>
+    <img class="brand-mark" src="../../assets/clash-cat-logo.png" width="38" height="38" alt="">
+    <p class="eyebrow">YOUR CONNECTIONS</p>
     <h1>Clash 订阅管理</h1><p class="muted intro">{{ reauthenticate ? '会话已过期，重新登录后继续编辑。' : '你的节点与配置，都在这里。' }}</p>
     <LoginForm :busy="busy" :error="error" @submit="login" />
     <p class="muted note">{{ reauthenticate ? '同一账号登录后，将恢复当前页面和未完成的输入。' : '使用服务器配置的管理员账号登录' }}</p>

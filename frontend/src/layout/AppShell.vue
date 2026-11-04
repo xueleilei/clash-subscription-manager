@@ -5,7 +5,10 @@ const emit = defineEmits<{ create: []; logout: [] }>()
 <template>
   <div class="app-layout">
     <aside class="sidebar">
-      <RouterLink to="/profiles" class="brand"><span class="brand-mark" aria-hidden="true">≋</span><span><strong>Clash 订阅管理</strong><small>YOUR CONNECTIONS</small></span></RouterLink>
+      <RouterLink to="/profiles" class="brand">
+        <img class="brand-mark" src="../assets/clash-cat-logo.png" width="38" height="38" alt="">
+        <span><strong>Clash 订阅管理</strong><small>YOUR CONNECTIONS</small></span>
+      </RouterLink>
       <p class="nav-caption">统一资源</p><nav aria-label="统一资源"><RouterLink to="/sources"><span aria-hidden="true">◎</span> 上游订阅</RouterLink><RouterLink to="/nodes"><span aria-hidden="true">▦</span> 统一节点池</RouterLink></nav>
       <div class="nav-caption caption-row"><span>配置方案</span><button class="icon-button" aria-label="新建方案" @click="emit('create')">＋</button></div>
       <nav aria-label="配置方案" class="profile-nav"><RouterLink v-for="profile in profiles" :key="profile.id" :to="`/profiles/${profile.id}`"><span class="dot" aria-hidden="true"></span><span class="truncate" :title="profile.name">{{ profile.name }}</span></RouterLink><RouterLink v-if="!profiles.length" to="/profiles">创建第一个方案</RouterLink></nav>
