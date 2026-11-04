@@ -16,12 +16,14 @@ public class LocalNodeCommitter {
     private final OwnerRevisionGuard revisions;
     private final NodeRepository nodes;
     private final ProfileRepository profiles;
-    public LocalNodeCommitter(OwnerRevisionGuard revisions, NodeRepository nodes, ProfileRepository profiles) {
-        this.revisions = revisions; this.nodes = nodes; this.profiles = profiles;
+    private final LocalNodeGroupService groups;
+    public LocalNodeCommitter(OwnerRevisionGuard revisions, NodeRepository nodes, ProfileRepository profiles, LocalNodeGroupService groups) {
+        this.revisions = revisions; this.nodes = nodes; this.profiles = profiles; this.groups = groups;
     }
-    @Transactional public LocalNodeResult save(OwnerSnapshot before, NodeSpec node, Long expected, Map<UUID, ProfileDocument> drafts) {
+    @Transactional public LocalNodeResult save(OwnerSnapshot before, NodeSpec node, Long expected, Map<UUID, ProfileDocument> drafts, UUID groupId) {
         revisions.compareAndIncrement(before.ownerId(), before.dataRevision());
-        if (expected == null) { nodes.insertLocal(before.ownerId(), node); }
+        if (groupId != null) { groups.require(before.ownerId(), groupId); }
+        if (expected == null) { nodes.insertLocal(before.ownerId(), node, groupId); }
         else { nodes.updateLocal(before.ownerId(), node, expected); }
         applyDrafts(before, drafts);
         return new LocalNodeResult(node.id(), Long.toString(expected == null ? 0 : expected + 1), drafts.keySet().stream().sorted().toList());
@@ -31,9 +33,10 @@ public class LocalNodeCommitter {
         nodes.deleteLocal(before.ownerId(), id, expected); applyDrafts(before, drafts);
         return new LocalNodeResult(id, Long.toString(expected + 1), drafts.keySet().stream().sorted().toList());
     }
-    @Transactional public LocalNodeBatchResult saveBatch(OwnerSnapshot before, List<NodeSpec> batch) {
+    @Transactional public LocalNodeBatchResult saveBatch(OwnerSnapshot before, List<NodeSpec> batch, UUID groupId) {
         revisions.compareAndIncrement(before.ownerId(), before.dataRevision());
-        for (var node : batch) { nodes.insertLocal(before.ownerId(), node); }
+        if (groupId != null) { groups.require(before.ownerId(), groupId); }
+        for (var node : batch) { nodes.insertLocal(before.ownerId(), node, groupId); }
         return new LocalNodeBatchResult(batch.stream().map(NodeSpec::id).toList(), List.of());
     }
     @Transactional public LocalNodeBatchResult deleteBatch(OwnerSnapshot before, Map<UUID, Long> versions, Map<UUID, ProfileDocument> drafts) {

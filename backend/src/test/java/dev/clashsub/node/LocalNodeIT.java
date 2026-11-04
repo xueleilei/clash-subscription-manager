@@ -230,7 +230,7 @@ class LocalNodeIT extends RefreshTestSupport {
         var before = snapshots.read(owner);
         var connection = (ObjectNode) input("Rollback fixture", "fixture-only").path("connection");
         var repeated = new NodeSpec(UUID.randomUUID(), null, "Rollback fixture", "ss", connection, null);
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> localCommitter.saveBatch(before, List.of(repeated, repeated)))
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> localCommitter.saveBatch(before, List.of(repeated, repeated), null))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
         assertThat(snapshots.read(owner)).isEqualTo(before);
     }
@@ -373,6 +373,84 @@ class LocalNodeIT extends RefreshTestSupport {
         var selected = value.putArray("nodes");
         for (var node : preview.path("nodes")) { selected.addObject().put("id", node.path("id").asString()).put("expectedVersion", node.path("version").asString()); }
         return value;
+    }
+
+    @Test void sourceFoldersOrganizeExistingNodesWithoutChangingProfilesOrPublishedYaml() throws Exception {
+        UUID a = UUID.fromString(ok(send("POST", "/local-nodes", input("First", "fixture-only"))).path("id").asString());
+        UUID b = UUID.fromString(ok(send("POST", "/local-nodes", input("Second", "fixture-only"))).path("id").asString());
+        UUID profile = profile("Published fixture", List.of(a, b), a);
+        var before = snapshots.read(owner);
+        String published = artifact(profile);
+        var timestamps = jdbc.queryForList("SELECT update_time FROM node WHERE owner_id=? ORDER BY id", owner.toString());
+        var group = ok(send("POST", "/local-node-groups", json.createObjectNode().put("name", " 自建 ")));
+        String id = group.path("id").asString();
+        assertThat(group.path("name").asString()).isEqualTo("自建");
+        assertThat(ok(send("GET", "/local-node-groups", null)).path("ungroupedCount").asInt()).isEqualTo(2);
+        ok(send("PUT", "/local-node-groups/" + id + "/members", batchSelection(a, b)));
+        var page = ok(send("GET", "/nodes?localGroupId=" + id + "&size=1&page=2", null));
+        assertThat(page.path("total").asInt()).isEqualTo(2);
+        assertThat(page.path("items").size()).isOne();
+        assertThat(page.path("items").get(0).path("localGroupName").asString()).isEqualTo("自建");
+        assertThat(page.path("items").get(0).path("localGroupId").asString()).isEqualTo(id);
+        assertThat(ok(send("GET", "/nodes?ungrouped=true", null)).path("total").asInt()).isZero();
+        ok(send("PUT", "/local-node-groups/ungrouped/members", batchSelection(a)));
+        var renamed = ok(send("PATCH", "/local-node-groups/" + id, json.createObjectNode()
+                .put("name", "朋友分享").put("expectedVersion", group.path("version").asString())));
+        assertThat(ok(send("GET", "/local-node-groups", null)).path("groups").get(0).path("nodeCount").asInt()).isOne();
+        assertThat(ok(send("GET", "/nodes?name=Second", null)).path("items").get(0).path("localGroupName").asString()).isEqualTo("朋友分享");
+        assertThat(send("DELETE", "/local-node-groups/" + id + "?expectedVersion=" + group.path("version").asString(), null).statusCode()).isEqualTo(409);
+        ok(send("DELETE", "/local-node-groups/" + id + "?expectedVersion=" + renamed.path("version").asString(), null));
+        assertThat(ok(send("GET", "/local-node-groups", null)).path("groups").size()).isZero();
+        assertThat(ok(send("GET", "/nodes?ungrouped=true", null)).path("total").asInt()).isEqualTo(2);
+        assertThat(nodes.requireLocal(owner, a).snapshotVersion()).isZero();
+        assertThat(jdbc.queryForList("SELECT update_time FROM node WHERE owner_id=? ORDER BY id", owner.toString())).isEqualTo(timestamps);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        assertThat(artifact(profile)).isEqualTo(published);
+    }
+
+    @Test void importedNodesKeepTheirChosenFolderAndADeletedDestinationDoesNotPartiallyImport() throws Exception {
+        var group = ok(send("POST", "/local-node-groups", json.createObjectNode().put("name", "实验室")));
+        String id = group.path("id").asString();
+        var one = ok(send("POST", "/local-nodes", input("Single", "fixture-only").put("localGroupId", id)));
+        ok(send("PUT", "/local-nodes/" + one.path("id").asString(), input("Renamed", "fixture-only").put("expectedVersion", "0")));
+        var batch = json.createObjectNode().put("text", yaml("Gateway", "Leaf"));
+        var preview = ok(send("POST", "/local-nodes/batch/preview", batch));
+        batch.put("ownerRevision", preview.path("ownerRevision").asString()).put("localGroupId", id);
+        ok(send("POST", "/local-nodes/batch", batch));
+        assertThat(ok(send("GET", "/nodes?localGroupId=" + id, null)).path("total").asInt()).isEqualTo(3);
+        preview = ok(send("POST", "/local-nodes/batch/preview", batch));
+        batch.put("ownerRevision", preview.path("ownerRevision").asString());
+        ok(send("DELETE", "/local-node-groups/" + id + "?expectedVersion=" + group.path("version").asString(), null));
+        var before = snapshots.read(owner);
+        assertThat(send("POST", "/local-nodes/batch", batch).statusCode()).isEqualTo(404);
+        assertThat(send("POST", "/local-nodes", input("Other", "fixture-only").put("localGroupId", id)).statusCode()).isEqualTo(404);
+        assertThat(snapshots.read(owner)).isEqualTo(before);
+        assertThat(ok(send("GET", "/nodes?ungrouped=true", null)).path("total").asInt()).isEqualTo(3);
+    }
+
+    @Test void folderWritesAreOwnerScopedAndInvalidMembersNeverPartiallyMove() throws Exception {
+        var group = ok(send("POST", "/local-node-groups", json.createObjectNode().put("name", "Work")));
+        String id = group.path("id").asString(), members = "/local-node-groups/" + id + "/members";
+        for (String invalid : List.of("work", " ", "未分组", "全部分组", "X".repeat(65))) {
+            assertThat(send("POST", "/local-node-groups", json.createObjectNode().put("name", invalid)).statusCode()).isEqualTo(400);
+        }
+        var local = UUID.fromString(ok(send("POST", "/local-nodes", input("Local", "fixture-only"))).path("id").asString());
+        var upstream = source("Remote", yaml("Remote"));
+        var remote = node(upstream, "Remote").id();
+        UUID other = UUID.randomUUID(), foreignGroup = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash) VALUES(?,?,?)", other.toString(), "other-" + other, "fixture-hash");
+        jdbc.update("INSERT INTO local_node_group(id,owner_id,name) VALUES(?,?,?)", foreignGroup.toString(), other.toString(), "Other");
+        var foreignNode = localNodes.save(other, null, new LocalNodeCommand(null, "Foreign", "ss", (ObjectNode) input("Foreign", "fixture-only").path("connection"), null));
+        for (UUID bad : List.of(remote, foreignNode.id(), UUID.randomUUID())) {
+            assertThat(send("PUT", members, batchSelection(local, bad)).statusCode()).isEqualTo(404);
+        }
+        assertThat(send("PUT", members, batchSelection(local, local)).statusCode()).isEqualTo(400);
+        assertThat(send("PUT", members, batchSelection()).statusCode()).isEqualTo(400);
+        assertThat(send("PUT", "/local-node-groups/" + foreignGroup + "/members", batchSelection(local)).statusCode()).isEqualTo(404);
+        assertThat(send("DELETE", "/local-node-groups/" + foreignGroup + "?expectedVersion=0", null).statusCode()).isEqualTo(404);
+        assertThat(ok(send("GET", "/local-node-groups", null)).path("groups").size()).isOne();
+        assertThat(ok(send("GET", "/nodes?localGroupId=" + id, null)).path("total").asInt()).isZero();
+        assertThat(ok(send("GET", "/nodes?ungrouped=true", null)).path("total").asInt()).isOne();
     }
 
     private ObjectNode input(String name, String password) {

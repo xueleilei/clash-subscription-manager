@@ -11,4 +11,6 @@ public interface OwnerRevisionMapper {
     int increment(@Param("owner") String owner, @Param("expected") long expected);
     @Select("SELECT data_revision FROM app_user WHERE id = #{owner}")
     Long revision(String owner);
+    @Select("SELECT data_revision FROM app_user WHERE id = #{owner} FOR UPDATE")
+    Long lock(String owner);
 }

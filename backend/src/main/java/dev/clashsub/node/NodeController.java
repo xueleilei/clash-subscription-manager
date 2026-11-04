@@ -21,8 +21,9 @@ public class NodeController {
     @GetMapping public ApiResult<Page<NodeSummary>> list(@RequestParam(required = false) UUID sourceId,
             @RequestParam(required = false) String protocol, @RequestParam(required = false) String region,
             @RequestParam(required = false) String name, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "50") int size,
-            @RequestParam(defaultValue = "false") boolean localOnly) {
-        return ApiResult.success(nodes.list(user.requireId(), new NodeQuery(sourceId, protocol, region, name, page, size, localOnly)));
+            @RequestParam(defaultValue = "false") boolean localOnly, @RequestParam(required = false) UUID localGroupId,
+            @RequestParam(defaultValue = "false") boolean ungrouped) {
+        return ApiResult.success(nodes.list(user.requireId(), new NodeQuery(sourceId, protocol, region, name, page, size, localOnly, localGroupId, ungrouped)));
     }
     @GetMapping("/{id}/connection") public ResponseEntity<ApiResult<NodeSpec>> connection(@PathVariable UUID id) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResult.success(nodes.connection(user.requireId(), id)));

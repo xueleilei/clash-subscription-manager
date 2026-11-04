@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LocalNodeBatchRemovalService {
-    private static final int MAX_BATCH_SIZE = 500;
     private final OwnerSnapshotReader snapshots;
     private final NodeRepository nodes;
     private final ReleaseRepository releases;
@@ -39,7 +38,7 @@ public class LocalNodeBatchRemovalService {
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LocalNodeBatchRemoval preview(UUID owner, List<UUID> selection) {
-        var ids = validateSelection(selection);
+        var ids = LocalNodeSelection.validate(selection);
         var rows = nodes.requireLocalBatch(owner, ids);
         var before = snapshots.read(owner);
         var affectedNodes = affectedNodes(before.nodes(), ids);
@@ -62,7 +61,7 @@ public class LocalNodeBatchRemovalService {
                 || command.ownerRevision() == null || command.ownerRevision() < 0) {
             throw ApiException.invalid("请重新检查删除影响，提供完整的节点版本和数据版本");
         }
-        var ids = validateSelection(command.nodes().stream().map(LocalNodeBatchDeleteCommand.Item::id).toList());
+        var ids = LocalNodeSelection.validate(command.nodes().stream().map(LocalNodeBatchDeleteCommand.Item::id).toList());
         var before = snapshots.read(owner);
         if (command.ownerRevision() != before.dataRevision()) { throw ApiException.conflict(); }
         var rows = nodes.requireLocalBatch(owner, ids);
@@ -81,17 +80,6 @@ public class LocalNodeBatchRemovalService {
             if (!updated.equals(original)) { drafts.put(profile.profileId(), updated); }
         }
         return committer.deleteBatch(before, versions, drafts);
-    }
-
-    private Set<UUID> validateSelection(List<UUID> selection) {
-        if (selection == null || selection.isEmpty() || selection.size() > MAX_BATCH_SIZE) {
-            throw ApiException.invalid("每次请选择 1 至 500 个手动节点");
-        }
-        var ids = new HashSet<UUID>();
-        for (var id : selection) {
-            if (id == null || !ids.add(id)) { throw ApiException.invalid("节点 ID 不能为空或重复"); }
-        }
-        return Set.copyOf(ids);
     }
 
     /** Traverse reverse dialer edges once, including indirect dependencies and selected chain members. */

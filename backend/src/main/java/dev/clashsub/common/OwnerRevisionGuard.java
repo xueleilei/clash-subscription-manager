@@ -20,4 +20,10 @@ public class OwnerRevisionGuard {
         if (value == null) { throw ApiException.missing(); }
         return value;
     }
+
+    /** Serialize metadata edits with node commits without invalidating graph snapshots. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lock(UUID ownerId) {
+        if (mapper.lock(ownerId.toString()) == null) { throw ApiException.missing(); }
+    }
 }

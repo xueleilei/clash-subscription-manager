@@ -1,8 +1,8 @@
 import { onScopeDispose, reactive, shallowRef } from 'vue'
 import { request } from '../../api/client'
 import type { NodeSummary, Page, SourceCommand, SourceView } from '../../types/domain'
-export interface NodeFilters { name: string; sourceId: string; protocol: string; region: string; page: number; size: number }
-export const defaultNodeFilters = (): NodeFilters => ({ name: '', sourceId: '', protocol: '', region: '', page: 1, size: 50 })
+export interface NodeFilters { name: string; sourceId: string; groupFilter: string; protocol: string; region: string; page: number; size: number }
+export const defaultNodeFilters = (): NodeFilters => ({ name: '', sourceId: '', groupFilter: '', protocol: '', region: '', page: 1, size: 50 })
 export function useSources() {
   const sources = shallowRef<SourceView[]>([]), nodes = shallowRef<Page<NodeSummary>>({ items: [], total: 0, page: 1, size: 50 })
   const query = reactive(defaultNodeFilters()); const lifetime = new AbortController(); let read: AbortController | null = null; let sequence = 0
@@ -10,7 +10,10 @@ export function useSources() {
   async function reloadSources() { sources.value = await request<SourceView[]>('/sources', { signal: lifetime.signal }) }
   async function reloadNodes() {
     const current = ++sequence; read?.abort(); read = new AbortController()
-    const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]))
+    const { groupFilter, ...filters } = query
+    const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]))
+    if (groupFilter === 'ungrouped') params.set('ungrouped', 'true')
+    else if (groupFilter) params.set('localGroupId', groupFilter)
     if (query.sourceId === '__LOCAL__') { params.delete('sourceId'); params.set('localOnly', 'true') }
     const result = await request<Page<NodeSummary>>(`/nodes?${params}`, { signal: read.signal })
     if (current === sequence) nodes.value = result

@@ -24,6 +24,9 @@ ID 使用 UUID 字符串；版本使用十进制字符串，前端不转成 Numb
 | 来源明文凭据（显式操作） | GET `/sources/{id}/credentials`，no-store |
 | 节点查询/明文参数 | GET `/nodes?name=&sourceId=&protocol=&region=&page=&size=`，GET `/nodes/{id}/connection` |
 | 节点地区选项 | GET `/nodes/regions`，返回配置顺序的 `[{name,regions:[{code,name}]}]`；节点查询按两位地区代码或 `UNKNOWN` 筛选 |
+| 手动节点来源分组 | GET `/local-node-groups` 返回 `{groups:[{id,name,version,nodeCount}],ungroupedCount}`。POST 同路径 `{name}` 创建；PATCH `/local-node-groups/{id}` 提交 `{name,expectedVersion}` 重命名；DELETE 同路径带 `?expectedVersion=` 删除分组并保留节点。创建/重命名返回 `{id,name,version}` |
+| 分组筛选与移动 | GET `/nodes?localGroupId={id}` 或 `/nodes?ungrouped=true`，支持原有搜索与分页。PUT `/local-node-groups/{id}/members` 或 `/local-node-groups/ungrouped/members`，提交 `{ids:[...]}` 一次移动 1–500 个本账号的手动节点 |
+| 添加到来源分组 | POST `/local-nodes` 和 POST `/local-nodes/batch` 可在原请求体中附加 `localGroupId`；省略或 null 为未分组。批量预览不写入，确认时检查目标归属并与节点一起提交。编辑已有节点参数保留来源分组；用移动接口单独修改归属 |
 | 手动刷新/全部刷新 | POST `/sources/{id}/refresh`、`/sources/refresh-all`，返回 202 task |
 | 任务与来源历史 | GET `/tasks/{id}`、`/sources/{id}/history` |
 | 空结果选择 | GET `/empty-decisions`，POST `/empty-decisions/{id}/decision` `{choice:"KEEP"|"CLEAR"}` |
@@ -45,3 +48,5 @@ ID 使用 UUID 字符串；版本使用十进制字符串，前端不转成 Numb
 发布预览与明文参数响应 no-store。生产 Java 只把已知页面路径转发至 index.html；API、订阅及缺失资源保持原有 401/404 状态，不以 SPA 页面代替错误。
 
 来源列表还返回 `nodeCount`，按 owner/source 聚合当前有效节点，不包含已删除节点的身份记录。本地节点不计入任何来源数量。
+
+节点摘要的 `localGroupId` 和 `localGroupName` 是本地来源分组元信息，远程和未分组节点均为 null。分组筛选隐含仅取本地节点，不能同时指定上游 `sourceId`。分组名在当前账号下唯一（忽略大小写），长度为 1–64 个字符，保留「未分组」「全部分组」。分组写操作不修改节点连接版本、草稿版本或已发布内容。

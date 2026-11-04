@@ -55,10 +55,10 @@ public class LocalNodeService {
                 .map(node -> new LocalNodeCommand(null, node.originalName(), node.protocol(), node.connection(), node.dialerRef())).toList());
     }
     @Transactional(propagation = Propagation.NEVER)
-    public LocalNodeBatchResult saveBatch(UUID owner, String text, Long ownerRevision) {
+    public LocalNodeBatchResult saveBatch(UUID owner, String text, Long ownerRevision, UUID localGroupId) {
         var before = snapshots.read(owner);
         if (ownerRevision == null || ownerRevision != before.dataRevision()) { throw ApiException.conflict(); }
-        return committer.saveBatch(before, prepareBatch(before, text));
+        return committer.saveBatch(before, prepareBatch(before, text), localGroupId);
     }
     private List<NodeSpec> prepareBatch(OwnerSnapshot before, String text) {
         var parsed = parser.parseAll(text);
@@ -98,7 +98,10 @@ public class LocalNodeService {
     @Transactional(propagation = Propagation.NEVER)
     public LocalNodeResult save(UUID owner, UUID id, LocalNodeCommand input) {
         if (id == null && input.expectedVersion() != null) { throw ApiException.invalid("新节点不能设置期望版本"); }
-        if (id != null) { checkVersion(nodes.requireLocal(owner, id), input.expectedVersion()); }
+        if (id != null) {
+            if (input.localGroupId() != null) { throw ApiException.invalid("请从手动节点列表移动分组"); }
+            checkVersion(nodes.requireLocal(owner, id), input.expectedVersion());
+        }
         var before = snapshots.read(owner);
         UUID nodeId = id == null ? UUID.randomUUID() : id;
         if (input.connection() == null) { throw ApiException.invalid("请提供节点连接参数"); }
@@ -121,7 +124,7 @@ public class LocalNodeService {
         validateNodes(List.of(nodeId), candidate);
         var drafts = new LinkedHashMap<UUID, ProfileDocument>();
         if (id != null) { affected(before, id).forEach(profile -> drafts.put(profile, before.profiles().get(profile).draft().document())); }
-        return committer.save(before, node, input.expectedVersion(), drafts);
+        return committer.save(before, node, input.expectedVersion(), drafts, input.localGroupId());
     }
     @Transactional(propagation = Propagation.NEVER)
     public LocalNodeResult delete(UUID owner, UUID id, Long expectedVersion, Long ownerRevision) {

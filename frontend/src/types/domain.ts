@@ -14,7 +14,9 @@ export interface ProviderDefinition { id: Id; name: string; type: string; url: s
 export interface ProfileDocument { schemaVersion: number; baseYaml: string; groups: GroupDefinition[]; rules: RuleDefinition[]; providers: ProviderDefinition[]; importIssues: Diagnostic[] }
 export interface DraftView { profileId: Id; version: Version; document: ProfileDocument; diagnostics: ValidationReport }
 export interface ProfileView { id: Id; name: string; version: Version; draftVersion: Version; currentReleaseId: Id | null; publishedVersion: Version | null; draftDefinitionHash: string; publishedDefinitionHash: string | null; hasUnpublishedNodeChanges?: boolean; createTime: string; updateTime: string }
-export interface NodeSummary { id: Id; sourceId: Id | null; originalName: string; protocol: string; region: string | null; snapshotVersion: Version }
+export interface LocalNodeGroup { id: Id; name: string; version: Version; nodeCount: number }
+export interface LocalNodeGroupDirectory { groups: LocalNodeGroup[]; ungroupedCount: number }
+export interface NodeSummary { id: Id; sourceId: Id | null; originalName: string; protocol: string; region: string | null; snapshotVersion: Version; localGroupId?: Id | null; localGroupName?: string | null }
 export interface NodeRegionGroup { name: string; regions: { code: string; name: string }[] }
 export interface NodeSpec extends Pick<NodeSummary, 'id' | 'sourceId' | 'originalName' | 'protocol'> { connection: JsonObject; dialerRef: TargetRef | null }
 export interface LocalNodeCommand { expectedVersion?: Version; name: string; protocol: string; connection: JsonObject; dialerRef: TargetRef | null }

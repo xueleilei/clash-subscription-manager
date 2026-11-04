@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,10 +83,14 @@ public class NodeRepository {
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void insertLocal(UUID owner, NodeSpec node) {
+        insertLocal(owner, node, null);
+    }
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void insertLocal(UUID owner, NodeSpec node, UUID groupId) {
         if (node.sourceId() != null) { throw ApiException.invalid("本地节点不能带上游来源"); }
         var key = NodeIdentity.key(node.id(), node.originalName());
         mapper.insert(new NodeDO(node.id().toString(), owner.toString(), null, key.nameHash(), node.originalName(), node.protocol(),
-                regions.fromName(node.originalName()), 0, documents.write(node, context(owner.toString(), node.id().toString()))));
+                regions.fromName(node.originalName()), 0, documents.write(node, context(owner.toString(), node.id().toString()))), groupId == null ? null : groupId.toString());
     }
     @Transactional(propagation = Propagation.MANDATORY)
     public void detachSource(UUID owner, UUID source) {
@@ -95,17 +100,22 @@ public class NodeRepository {
             if (mapper.detach(owner.toString(), source.toString(), node.id().toString(), documents.write(local, context(owner.toString(), node.id().toString()))) != 1) { throw ApiException.conflict(); }
         }
     }
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<NodeSummary> list(UUID owner, NodeQuery query) {
         if (query.page() < 1 || query.page() > 100_000 || query.size() < 1 || query.size() > 200) { throw ApiException.invalid("分页参数不正确"); }
-        if (query.localOnly() && query.sourceId() != null) { throw ApiException.invalid("本地节点筛选不能同时指定上游来源"); }
+        boolean localOnly = query.localOnly() || query.localGroupId() != null || query.ungrouped();
+        if (localOnly && query.sourceId() != null) { throw ApiException.invalid("本地节点筛选不能同时指定上游来源"); }
+        if (query.ungrouped() && query.localGroupId() != null) { throw ApiException.invalid("请只选择一个来源分组"); }
+        String groupId = query.localGroupId() == null ? null : query.localGroupId().toString();
         String source = query.sourceId() == null ? null : query.sourceId().toString();
         String protocol = empty(query.protocol()), region = empty(query.region()), name = empty(query.name());
         if (name != null) { name = "%" + name.toLowerCase(Locale.ROOT).replace("=", "==").replace("%", "=%").replace("_", "=_") + "%"; }
-        long count = mapper.count(owner.toString(), source, protocol, region, name, query.localOnly());
+        long count = mapper.count(owner.toString(), source, protocol, region, name, localOnly, groupId, query.ungrouped());
         if (count == 0) { return new Page<>(List.of(), 0, query.page(), query.size()); }
-        var rows = mapper.page(owner.toString(), source, protocol, region, name, query.size(), (long) (query.page() - 1) * query.size(), query.localOnly());
+        var rows = mapper.page(owner.toString(), source, protocol, region, name, query.size(), (long) (query.page() - 1) * query.size(), localOnly, groupId, query.ungrouped());
         return new Page<>(rows.stream().map(row -> new NodeSummary(UUID.fromString(row.id()), row.sourceId() == null ? null : UUID.fromString(row.sourceId()),
-                row.originalName(), row.protocol(), row.region(), Long.toString(row.snapshotVersion()))).toList(), count, query.page(), query.size());
+                row.originalName(), row.protocol(), row.region(), Long.toString(row.snapshotVersion()),
+                row.localGroupId() == null ? null : UUID.fromString(row.localGroupId()), row.localGroupName())).toList(), count, query.page(), query.size());
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -125,7 +135,7 @@ public class NodeRepository {
             if (previous != null && !previous.originalName().equals(node.originalName())) { throw ApiException.conflict(); }
             var row = new NodeDO(node.id().toString(), owner.toString(), source.toString(), key.nameHash(), node.originalName(),
                     node.protocol(), regions.fromName(node.originalName()), snapshot, documents.write(node, context(owner.toString(), node.id().toString())));
-            if (previous == null) { mapper.insert(row); }
+            if (previous == null) { mapper.insert(row, null); }
             else if (mapper.update(row) != 1) { throw ApiException.conflict(); }
         }
         for (var previous : existing) {
