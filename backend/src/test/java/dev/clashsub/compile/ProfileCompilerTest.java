@@ -160,15 +160,16 @@ class ProfileCompilerTest {
                 .isEqualTo(compiler().compile(PROFILE, doc, new NodeCatalog(two), sources(1L)).compiled().yaml());
     }
 
-    @Test void duplicateSourceAndNodeNamesReceiveStableDistinctSuffixes() {
+    @Test void sameNamesAcrossSubscriptionsAndManualGroupsReceiveStableDistinctSuffixes() {
         var otherSource = UUID.fromString("20000000-0000-0000-0000-000000000002");
         var sameNames = Map.of(SOURCE, new SourceState(SOURCE, 1L, 1L, "同名订阅"),
                 otherSource, new SourceState(otherSource, 1L, 1L, "同名订阅"));
         var first = node(A, SOURCE, "香港", null);
         var second = node(B, otherSource, "香港", TargetRef.node(A));
-        var forward = new LinkedHashMap<UUID, NodeSpec>(); forward.put(A, first); forward.put(B, second);
-        var reversed = new LinkedHashMap<UUID, NodeSpec>(); reversed.put(B, second); reversed.put(A, first);
-        var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A), TargetRef.node(B))),
+        var local = node(DIALER, null, "香港", null).withLocalGroupName("同名订阅");
+        var forward = new LinkedHashMap<UUID, NodeSpec>(); forward.put(A, first); forward.put(B, second); forward.put(DIALER, local);
+        var reversed = new LinkedHashMap<UUID, NodeSpec>(); reversed.put(DIALER, local); reversed.put(B, second); reversed.put(A, first);
+        var doc = document(List.of(group(GROUP, "Main", "select", TargetRef.node(A), TargetRef.node(B), TargetRef.node(DIALER))),
                 List.of(rule("MATCH", "", TargetRef.node(B))), List.of());
 
         var result = compiler().compile(PROFILE, doc, new NodeCatalog(forward), sameNames);

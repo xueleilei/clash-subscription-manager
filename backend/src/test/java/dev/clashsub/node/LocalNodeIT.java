@@ -1,5 +1,6 @@
 package dev.clashsub.node;
 
+import dev.clashsub.parse.SafeYaml;
 import dev.clashsub.sync.RefreshTestSupport;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -428,6 +429,49 @@ class LocalNodeIT extends RefreshTestSupport {
         return value;
     }
 
+    @Test void subscriptionUsesThePublishedManualGroupUntilTheNextManualRelease() throws Exception {
+        var folder = ok(send("POST", "/local-node-groups", json.createObjectNode().put("name", "朋友,分享")));
+        String folderId = folder.path("id").asString();
+        var gateway = ok(send("POST", "/local-nodes", input("香港 01", "fixture-gateway").put("localGroupId", folderId)));
+        UUID gatewayId = UUID.fromString(gateway.path("id").asString());
+        var child = input("Leaf", "fixture-leaf");
+        child.set("dialerRef", json.valueToTree(TargetRef.node(gatewayId)));
+        UUID leaf = UUID.fromString(ok(send("POST", "/local-nodes", child)).path("id").asString());
+        UUID remote = source("上游", yaml("Remote"));
+        UUID profile = profile("Mixed", List.of(gatewayId, leaf, node(remote, "Remote").id()), gatewayId);
+        String yaml = artifact(profile);
+        var output = new SafeYaml().load(yaml).value();
+        String label = "香港 01 · 朋友，分享";
+        assertThat(output.path("proxy-groups").get(0).path("proxies").get(0).asString()).isEqualTo(label);
+        assertThat(output.path("proxies")).anySatisfy(proxy -> assertThat(proxy.path("name").asString()).isEqualTo(label));
+        assertThat(output.path("proxies")).anySatisfy(proxy -> {
+            assertThat(proxy.path("name").asString()).isEqualTo("Leaf · 本地节点");
+            assertThat(proxy.path("dialer-proxy").asString()).isEqualTo(label);
+        });
+        assertThat(output.path("rules").get(0).asString()).isEqualTo("IP-CIDR,192.0.2.0/24," + label + ",no-resolve");
+
+        long version = profiles.load(owner, profile).version();
+        String rulePath = "/profiles/" + profile + "/rule-text";
+        var read = ok(send("POST", rulePath, json.createObjectNode().put("expectedVersion", version)));
+        assertThat(read.path("text").asString()).contains(label);
+        ok(send("PATCH", "/local-node-groups/" + folderId, json.createObjectNode().put("name", "TAG").put("expectedVersion", 0)));
+        assertThat(send("POST", rulePath + "/preview", json.createObjectNode().put("expectedVersion", version)
+                .put("ownerRevision", read.path("ownerRevision").asString()).put("text", read.path("text").asString())).statusCode()).isEqualTo(409);
+        assertThat(publisher.preview(owner, profile, version, null).yaml()).contains("香港 01 · TAG");
+        assertThat(profileRow(profile).path("hasUnpublishedNodeChanges").asBoolean()).isTrue();
+        assertThat(artifact(profile)).isEqualTo(yaml);
+        respond(remote, yaml("Remote").replace("fixture-first", "fixture-new"));
+        assertThat(run(remote).status()).isEqualTo("SUCCESS");
+        assertThat(artifact(profile)).contains(label, "fixture-new").doesNotContain("香港 01 · TAG");
+
+        publisher.publish(owner, profile, version, null);
+        assertThat(artifact(profile)).contains("香港 01 · TAG").doesNotContain(label);
+        assertThat(profileRow(profile).path("hasUnpublishedNodeChanges").asBoolean()).isFalse();
+        ok(send("DELETE", "/local-node-groups/" + folderId + "?expectedVersion=1", null));
+        publisher.publish(owner, profile, profiles.load(owner, profile).version(), null);
+        assertThat(artifact(profile)).contains("香港 01 · 本地节点").doesNotContain("香港 01 · TAG");
+    }
+
     @Test void sourceFoldersOrganizeExistingNodesWithoutChangingProfilesOrPublishedYaml() throws Exception {
         UUID a = UUID.fromString(ok(send("POST", "/local-nodes", input("First", "fixture-only"))).path("id").asString());
         UUID b = UUID.fromString(ok(send("POST", "/local-nodes", input("Second", "fixture-only"))).path("id").asString());
@@ -440,6 +484,8 @@ class LocalNodeIT extends RefreshTestSupport {
         assertThat(group.path("name").asString()).isEqualTo("自建");
         assertThat(ok(send("GET", "/local-node-groups", null)).path("ungroupedCount").asInt()).isEqualTo(2);
         ok(send("PUT", "/local-node-groups/" + id + "/members", batchSelection(a, b)));
+        assertThat(publisher.preview(owner, profile, profiles.load(owner, profile).version(), null).yaml())
+                .contains("First · 自建", "Second · 自建");
         var page = ok(send("GET", "/nodes?localGroupId=" + id + "&size=1&page=2", null));
         assertThat(page.path("total").asInt()).isEqualTo(2);
         assertThat(page.path("items").size()).isOne();
@@ -457,7 +503,10 @@ class LocalNodeIT extends RefreshTestSupport {
         assertThat(ok(send("GET", "/nodes?ungrouped=true", null)).path("total").asInt()).isEqualTo(2);
         assertThat(nodes.requireLocal(owner, a).snapshotVersion()).isZero();
         assertThat(jdbc.queryForList("SELECT update_time FROM node WHERE owner_id=? ORDER BY id", owner.toString())).isEqualTo(timestamps);
-        assertThat(snapshots.read(owner)).isEqualTo(before);
+        var after = snapshots.read(owner);
+        assertThat(after.dataRevision()).isGreaterThan(before.dataRevision());
+        assertThat(after.nodes()).isEqualTo(before.nodes());
+        assertThat(after.profiles()).isEqualTo(before.profiles());
         assertThat(artifact(profile)).isEqualTo(published);
     }
 
@@ -475,6 +524,8 @@ class LocalNodeIT extends RefreshTestSupport {
         batch.put("ownerRevision", preview.path("ownerRevision").asString());
         ok(send("DELETE", "/local-node-groups/" + id + "?expectedVersion=" + group.path("version").asString(), null));
         var before = snapshots.read(owner);
+        assertThat(send("POST", "/local-nodes/batch", batch).statusCode()).isEqualTo(409);
+        batch.put("ownerRevision", before.dataRevision());
         assertThat(send("POST", "/local-nodes/batch", batch).statusCode()).isEqualTo(404);
         assertThat(send("POST", "/local-nodes", input("Other", "fixture-only").put("localGroupId", id)).statusCode()).isEqualTo(404);
         assertThat(snapshots.read(owner)).isEqualTo(before);

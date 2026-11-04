@@ -2,6 +2,7 @@ package dev.clashsub.compile;
 
 import dev.clashsub.common.Diagnostic;
 import dev.clashsub.common.ValidationReport;
+import dev.clashsub.node.NodeSpec;
 import dev.clashsub.profile.ProfileDocument;
 import dev.clashsub.source.SourceState;
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class OutputNameAllocator {
     private static final int SHORT_ID_LENGTH = 8;
     private static final int ID_EXTENSION_LENGTH = 4;
-    private static final Pattern LABEL_WHITESPACE = Pattern.compile("[\\p{Cntrl}\\s]+");
+    private static final Pattern LABEL_WHITESPACE = Pattern.compile("[\\p{Cc}\\p{Zl}\\p{Zp}\\s]+");
 
     public OutputNames allocate(ProfileDocument document, UsedDependencies dependencies, Map<UUID, SourceState> sources) {
         var nodes = new LinkedHashMap<UUID, String>(); var groups = new LinkedHashMap<UUID, String>(); var providers = new LinkedHashMap<UUID, String>();
@@ -30,8 +31,7 @@ public class OutputNameAllocator {
         var baseNames = new LinkedHashMap<UUID, String>();
         var counts = new HashMap<String, Integer>();
         dependencies.nodes().values().stream().sorted(java.util.Comparator.comparing(node -> node.id().toString())).forEach(node -> {
-            String label = node.sourceId() == null ? "本地节点" : sourceLabel(sources.get(node.sourceId()));
-            String name = node.originalName() + " · " + label;
+            String name = node.originalName() + " · " + sourceLabel(node, sources);
             baseNames.put(node.id(), name);
             counts.merge(name, 1, Integer::sum);
         });
@@ -47,11 +47,16 @@ public class OutputNameAllocator {
         document.providers().forEach(provider -> providers.put(provider.id(), provider.name()));
         return new OutputNames(nodes, groups, providers, ValidationReport.of(issues));
     }
-    private String sourceLabel(SourceState source) {
-        if (source == null || source.name() == null) { return "上游订阅"; }
-        // A source label must not introduce delimiters or control characters into a direct rule target.
-        String label = LABEL_WHITESPACE.matcher(source.name().replace(',', '，')).replaceAll(" ").strip();
-        return label.isEmpty() ? "上游订阅" : label;
+    private String sourceLabel(NodeSpec node, Map<UUID, SourceState> sources) {
+        if (node.sourceId() == null) { return safeLabel(node.localGroupName(), "本地节点"); }
+        var source = sources.get(node.sourceId());
+        return safeLabel(source == null ? null : source.name(), "上游订阅");
+    }
+    private String safeLabel(String name, String fallback) {
+        if (name == null) { return fallback; }
+        // Direct rule targets use commas as delimiters and must fit on one line.
+        String label = LABEL_WHITESPACE.matcher(name.replace(',', '，')).replaceAll(" ").strip();
+        return label.isEmpty() ? fallback : label;
     }
     private String disambiguate(String base, UUID id, Set<String> unavailable) {
         String suffix = id.toString().replace("-", "");

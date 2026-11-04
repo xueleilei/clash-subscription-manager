@@ -119,7 +119,9 @@ public class LocalNodeService {
         }
         var dialer = input.dialerRef();
         var node = new NodeSpec(nodeId, null, input.name(), input.protocol(), connection, dialer);
-        if (previous != null && input.regionOverride() != null && node.equals(before.nodes().get(id))) {
+        var current = before.nodes().get(nodeId);
+        var candidateNode = current == null ? node : node.withLocalGroupName(current.localGroupName());
+        if (previous != null && input.regionOverride() != null && candidateNode.equals(current)) {
             return committer.saveRegion(owner, node, previous.snapshotVersion(), regionOverride);
         }
         var value = connection.deepCopy().put("name", input.name()).put("type", input.protocol());
@@ -129,7 +131,7 @@ public class LocalNodeService {
             if (!Set.of(TargetRef.Kind.NODE, TargetRef.Kind.DIRECT, TargetRef.Kind.REJECT).contains(dialer.kind())) { throw invalid("dialerRef", "链式代理必须选择节点、DIRECT 或 REJECT"); }
             if (dialer.kind() == TargetRef.Kind.NODE && before.nodes().get(dialer.id()) == null && !nodeId.equals(dialer.id())) { throw ApiException.missing(); }
         }
-        var catalog = new LinkedHashMap<>(before.nodes().nodes()); catalog.put(nodeId, node);
+        var catalog = new LinkedHashMap<>(before.nodes().nodes()); catalog.put(nodeId, candidateNode);
         var candidate = new OwnerSnapshot(owner, before.dataRevision(), before.sources(), new NodeCatalog(catalog), before.profiles());
         validateNodes(List.of(nodeId), candidate);
         var drafts = new LinkedHashMap<UUID, ProfileDocument>();

@@ -40,28 +40,32 @@ public class LocalNodeGroupService {
     @Transactional
     public Saved rename(UUID owner, UUID id, Long expected, String name) {
         String clean = name(name);
-        revisions.lock(owner);
+        long revision = revisions.lock(owner);
         checkVersion(owner, id, expected);
         try { mapper.rename(owner.toString(), id.toString(), clean); }
         catch (DuplicateKeyException duplicate) { throw ApiException.invalid("已经有同名的来源分组"); }
+        revisions.compareAndIncrement(owner, revision);
         return new Saved(id, clean, Long.toString(expected + 1));
     }
 
     @Transactional
     public void delete(UUID owner, UUID id, Long expected) {
-        revisions.lock(owner);
+        long revision = revisions.lock(owner);
         checkVersion(owner, id, expected);
-        mapper.releaseMembers(owner.toString(), id.toString());
+        int released = mapper.releaseMembers(owner.toString(), id.toString());
         mapper.delete(owner.toString(), id.toString());
+        if (released > 0) { revisions.compareAndIncrement(owner, revision); }
     }
 
     @Transactional
     public void move(UUID owner, UUID destination, List<UUID> selection) {
         var ids = LocalNodeSelection.validate(selection);
-        revisions.lock(owner);
+        long revision = revisions.lock(owner);
         if (destination != null) { require(owner, destination); }
         nodes.requireLocalBatch(owner, ids);
-        mapper.move(owner.toString(), destination == null ? null : destination.toString(), ids.stream().map(UUID::toString).toList());
+        int moved = mapper.move(owner.toString(), destination == null ? null : destination.toString(),
+                ids.stream().map(UUID::toString).toList());
+        if (moved > 0) { revisions.compareAndIncrement(owner, revision); }
     }
 
     /** Call after locking the owner (or incrementing their revision in the node creation transaction). */

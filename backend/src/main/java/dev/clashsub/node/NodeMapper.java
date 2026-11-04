@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.*;
 @Mapper
 public interface NodeMapper {
     record SourceCount(String sourceId, long nodeCount) { }
+    record CatalogRow(String id, String connectionCipher, String localGroupName) { }
     record PageRow(String id, String sourceId, String originalName, String protocol, String region, long snapshotVersion,
             String localGroupId, String localGroupName) { }
     @Select("SELECT source_id,COUNT(*) AS node_count FROM node WHERE owner_id=#{owner} AND is_active=1 AND source_id IS NOT NULL GROUP BY source_id")
@@ -20,8 +21,13 @@ public interface NodeMapper {
     NodeDO find(@Param("owner") String owner, @Param("id") String id);
     @Select("<script>SELECT id,owner_id,source_id,name_hash,original_name,protocol,region,region_override,snapshot_version,NULL AS connection_cipher FROM node WHERE owner_id=#{owner} AND source_id IS NULL AND is_active=1 AND id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> ORDER BY id</script>")
     List<NodeDO> findLocalBatch(@Param("owner") String owner, @Param("ids") List<String> ids);
-    @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND is_active=1 ORDER BY id")
-    List<NodeDO> all(String owner);
+    @Select("""
+            SELECT n.id, n.connection_cipher, g.name AS local_group_name
+            FROM node n LEFT JOIN local_node_group g
+                ON g.id=n.local_group_id AND g.owner_id=n.owner_id AND n.source_id IS NULL
+            WHERE n.owner_id=#{owner} AND n.is_active=1 ORDER BY n.id
+            """)
+    List<CatalogRow> catalog(String owner);
     @Select("SELECT " + COLUMNS + " FROM node WHERE owner_id=#{owner} AND source_id=#{source} ORDER BY id")
     List<NodeDO> source(@Param("owner") String owner, @Param("source") String source);
     @Select("<script>SELECT n.id,n.source_id,n.original_name,n.protocol,n.region,n.snapshot_version,g.id AS local_group_id,g.name AS local_group_name"

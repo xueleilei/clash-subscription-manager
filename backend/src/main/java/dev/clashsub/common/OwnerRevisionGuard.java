@@ -23,7 +23,9 @@ public class OwnerRevisionGuard {
 
     /** Serialize metadata edits with node commits without invalidating graph snapshots. */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void lock(UUID ownerId) {
-        if (mapper.lock(ownerId.toString()) == null) { throw ApiException.missing(); }
+    public long lock(UUID ownerId) {
+        Long revision = mapper.lock(ownerId.toString());
+        if (revision == null) { throw ApiException.missing(); }
+        return revision;
     }
 }

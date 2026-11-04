@@ -25,7 +25,8 @@ public interface LocalNodeGroupMapper {
     int delete(@Param("owner") String owner, @Param("id") String id);
     @Update("UPDATE node SET local_group_id=NULL,update_time=update_time WHERE owner_id=#{owner} AND source_id IS NULL AND local_group_id=#{id}")
     int releaseMembers(@Param("owner") String owner, @Param("id") String id);
-    @Update("<script>UPDATE node SET local_group_id=#{groupId},update_time=update_time WHERE owner_id=#{owner} AND source_id IS NULL AND is_active=1 AND id IN "
+    @Update("<script>UPDATE node SET local_group_id=#{groupId},update_time=update_time WHERE owner_id=#{owner} AND source_id IS NULL AND is_active=1"
+            + " AND NOT (local_group_id &lt;=> #{groupId}) AND id IN "
             + "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int move(@Param("owner") String owner, @Param("groupId") String groupId, @Param("ids") List<String> ids);
 }

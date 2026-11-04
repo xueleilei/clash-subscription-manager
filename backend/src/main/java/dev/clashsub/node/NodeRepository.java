@@ -62,7 +62,11 @@ public class NodeRepository {
     }
     public NodeCatalog catalog(UUID owner) {
         var values = new LinkedHashMap<UUID, NodeSpec>();
-        for (var row : mapper.all(owner.toString())) { var node = decode(row); values.put(node.id(), node); }
+        String ownerId = owner.toString();
+        for (var row : mapper.catalog(ownerId)) {
+            var node = documents.read(row.connectionCipher(), context(ownerId, row.id()), NodeSpec.class);
+            values.put(node.id(), node.withLocalGroupName(row.localGroupName()));
+        }
         return new NodeCatalog(values);
     }
     public Map<UUID, Long> countsBySource(UUID owner) {
