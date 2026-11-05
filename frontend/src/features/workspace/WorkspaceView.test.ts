@@ -6,13 +6,13 @@ import App from '../../App.vue'
 import { createAppRouter } from '../../router'
 import { useSession } from '../auth/useSession'
 import { mockApi, reply, button } from '../../test/http'
-import { documentFixture, draftFixture, nodesFixture, profileFixture } from '../../test/fixtures'
+import { documentFixture, draftFixture, nodesFixture, profileFixture, target } from '../../test/fixtures'
 import type { NodeSummary, ProfileDocument } from '../../types/domain'
 afterEach(() => { vi.unstubAllGlobals(); document.body.innerHTML = '' })
-async function prepare({ nodes = nodesFixture(), withApp = false, unpublishedNodes = false }: {
- nodes?: NodeSummary[]; withApp?: boolean; unpublishedNodes?: boolean
+async function prepare({ nodes = nodesFixture(), profileDocument = documentFixture(), withApp = false, unpublishedNodes = false }: {
+ nodes?: NodeSummary[]; profileDocument?: ProfileDocument; withApp?: boolean; unpublishedNodes?: boolean
 } = {}) {
- const profileDocument = documentFixture(), writes: ProfileDocument[] = []
+ const writes: ProfileDocument[] = []
  mockApi((path, method, body) => {
   if (path === '/session') return reply(method === 'GET' ? { id: owner, username: 'admin' } : null)
   if (path === '/profiles') return reply([{ ...profileFixture(), ...(unpublishedNodes ? { currentReleaseId: 'release-1', publishedVersion: '1', publishedDefinitionHash: 'hash-a', hasUnpublishedNodeChanges: true } : {}) }])
@@ -34,6 +34,7 @@ async function prepare({ nodes = nodesFixture(), withApp = false, unpublishedNod
 }
 function documentBody() { return document.body.textContent ?? '' }
 function nodeCheckbox(id: string) { return document.querySelector<HTMLInputElement>(`input[data-node-id="${id}"]`)! }
+function memberCheckbox(id: string) { return document.querySelector<HTMLInputElement>(`[data-member-key="NODE:${id}:0"] input[type="checkbox"]`)! }
 test('local node changes show pending publication even when the profile definition is unchanged', async () => {
  await prepare({ unpublishedNodes: true })
  await expect.poll(() => documentBody()).toContain('已保存待发布')
@@ -142,6 +143,75 @@ test('adds an entire local source group across pages, skips existing members and
  await expect.poll(() => writes.length).toBe(2)
  expect(writes[1]!.groups[0]!.members.map(member => member.id)).toEqual(groupedIds)
  expect(writes[1]!.groups[1]!.members.map(member => member.id)).toEqual([...groupedIds, 'loose'])
+})
+test('bulk removal follows selected member identities after reordering and affects only the current draft group', async () => {
+ const nodes = nodesFixture(4), profileDocument = documentFixture()
+ nodes[1]!.originalName = nodes[0]!.originalName
+ profileDocument.groups[0]!.members = nodes.map(node => target('NODE', node.id))
+ profileDocument.groups[1]!.members = [target('NODE', 'n1'), target('NODE', 'n2')]
+ const { wrapper, writes } = await prepare({ nodes, profileDocument })
+ const selectAll = () => wrapper.get<HTMLInputElement>('[aria-label="全选当前代理组成员"]').element
+ expect(button('批量移除当前组成员').disabled).toBe(true)
+ memberCheckbox('n1').click()
+ await expect.poll(() => selectAll().indeterminate).toBe(true)
+ button('选择代理组 香港优选').click()
+ await expect.poll(() => wrapper.get('.member-selection').text()).toContain('已选 0 / 2')
+ expect(memberCheckbox('n1').checked).toBe(false)
+ expect(button('批量移除当前组成员').disabled).toBe(true)
+ button('选择代理组 AI 服务').click()
+ await expect.poll(() => wrapper.get('.member-selection').text()).toContain('已选 0 / 4')
+ memberCheckbox('n1').click()
+ memberCheckbox('n3').click()
+ await wrapper.get('[data-member-key="NODE:n1:0"] [aria-label^="下移"]').trigger('click')
+ expect(memberCheckbox('n1').checked).toBe(true)
+ expect(memberCheckbox('n2').checked).toBe(false)
+ expect(memberCheckbox('n3').checked).toBe(true)
+ button('批量移除当前组成员').click()
+ await expect.poll(() => wrapper.findAll('[data-member-row]').map(row => row.attributes('data-member-key'))).toEqual(['NODE:n2:0', 'NODE:n4:0'])
+ expect(wrapper.get('.member-selection').text()).toContain('已选 0 / 2')
+ expect(button('批量移除当前组成员').disabled).toBe(true)
+ expect(nodeCheckbox('n1').disabled).toBe(false)
+ expect(nodeCheckbox('n3').disabled).toBe(false)
+ expect(nodeCheckbox('n2').disabled).toBe(true)
+ expect(writes).toHaveLength(0)
+ expect(documentBody()).toContain('未保存')
+ button('保存草稿').click()
+ await expect.poll(() => writes.length).toBe(1)
+ expect(writes[0]!.groups[0]!.members).toEqual([target('NODE', 'n2'), target('NODE', 'n4')])
+ expect(writes[0]!.groups[1]).toEqual(profileDocument.groups[1])
+ expect(writes[0]!.rules).toEqual(profileDocument.rules)
+})
+test('select all covers the whole member list and clearing a group keeps its nodes and other groups available', async () => {
+ const nodes = nodesFixture(), profileDocument = documentFixture()
+ profileDocument.groups[0]!.members = [...nodes.map(node => target('NODE', node.id)), target('GROUP', 'g2'), target('DIRECT'), target('REJECT')]
+ profileDocument.groups[1]!.members = [target('NODE', 'n1')]
+ const { wrapper, writes } = await prepare({ nodes, profileDocument })
+ const selectAll = wrapper.get<HTMLInputElement>('[aria-label="全选当前代理组成员"]')
+ await selectAll.setValue(true)
+ expect(wrapper.get('.member-selection').text()).toContain('已选 57 / 57')
+ expect(memberCheckbox('n54').checked).toBe(true)
+ expect(selectAll.element.indeterminate).toBe(false)
+ memberCheckbox('n2').click()
+ await expect.poll(() => selectAll.element.indeterminate).toBe(true)
+ expect(wrapper.get('.member-selection').text()).toContain('已选 56 / 57')
+ button('清空成员选择').click()
+ await expect.poll(() => wrapper.get('.member-selection').text()).toContain('已选 0 / 57')
+ expect(button('批量移除当前组成员').disabled).toBe(true)
+ await selectAll.setValue(true)
+ await selectAll.setValue(false)
+ expect(wrapper.findAll('[data-member-row] input:checked')).toHaveLength(0)
+ await selectAll.setValue(true)
+ button('批量移除当前组成员').click()
+ await expect.poll(() => wrapper.findAll('[data-member-row]').length).toBe(0)
+ expect(wrapper.get('.member-column').text()).toContain('空组 → REJECT')
+ expect(selectAll.element.disabled).toBe(true)
+ expect(selectAll.element.checked).toBe(false)
+ expect(nodeCheckbox('n1').disabled).toBe(false)
+ expect(writes).toHaveLength(0)
+ button('保存草稿').click()
+ await expect.poll(() => writes.length).toBe(1)
+ expect(writes[0]!.groups[0]!.members).toEqual([])
+ expect(writes[0]!.groups[1]).toEqual(profileDocument.groups[1])
 })
 test('members reorder/remove, nested groups reject cycles, and empty groups visibly fall back to REJECT', async () => {
  const { writes } = await prepare(); expect(documentBody()).toContain('空组 → REJECT')
