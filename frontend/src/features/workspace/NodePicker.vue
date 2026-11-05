@@ -5,7 +5,7 @@ import NodeRegionSelect from '../nodes/NodeRegionSelect.vue'
 import type { NodeSummary, SourceView } from '../../types/domain'
 import { nodeSourceLabel } from '../../utils/display'
 const props = defineProps<{ nodes: readonly NodeSummary[]; sources: readonly Pick<SourceView, 'id' | 'name'>[]; disabledIds: ReadonlySet<string>; selectedIds: ReadonlySet<string>; hasGroup: boolean }>()
-const emit = defineEmits<{ toggle: [id: string]; add: []; selectPage: [ids: string[]] }>()
+const emit = defineEmits<{ toggle: [id: string]; add: [ids?: readonly string[]]; selectPage: [ids: string[]] }>()
 const keyword = shallowRef(''), source = shallowRef(''), protocol = shallowRef(''), region = shallowRef(''), page = shallowRef(1)
 const localSource = '__LOCAL__'
 const ungrouped = 'ungrouped'
@@ -33,6 +33,10 @@ const filtered = computed(() => {
 const pageCount = computed(() => Math.max(1, Math.ceil(filtered.value.length / 50))), visible = computed(() => filtered.value.slice((page.value - 1) * 50, page.value * 50))
 const regions = computed(() => new Set(props.nodes.map(node => node.region ?? 'UNKNOWN'))), protocols = computed(() => [...new Set(props.nodes.map(node => node.protocol))].sort())
 const available = computed(() => visible.value.filter(node => !props.disabledIds.has(node.id)).map(node => node.id))
+const localGroupNodes = computed(() => localOnly.value && localGroup.value
+ ? props.nodes.filter(node => !node.sourceId && (node.localGroupId || ungrouped) === localGroup.value)
+ : [])
+const availableGroup = computed(() => localGroupNodes.value.filter(node => !props.disabledIds.has(node.id)).map(node => node.id))
 watch([localOnly, localGroups], ([isLocal, groups]) => {
  if (!isLocal || (localGroup.value && localGroup.value !== ungrouped && !groups.some(group => group.id === localGroup.value))) {
   localGroup.value = ''
@@ -64,6 +68,13 @@ watch(pageCount, count => { if (page.value > count) page.value = count })
     </select>
    </div>
    <div class="picker-meta"><span>匹配 {{ filtered.length }} 个 · 第 {{ page }} / {{ pageCount }} 页</span><button class="text-button" :disabled="!hasGroup || !available.length" @click="emit('selectPage', available)">选择本页可用</button></div>
+   <div v-if="localOnly && localGroup" class="picker-group-action">
+    <div class="picker-group-summary">
+     <span>整组 {{ localGroupNodes.length }} 个 · 可加入 {{ availableGroup.length }} 个</span>
+     <ElButton size="small" type="primary" plain aria-label="加入整个本地分组" :disabled="!hasGroup || !availableGroup.length" @click="emit('add', availableGroup)">加入整个分组</ElButton>
+    </div>
+    <p>覆盖该分组全部分页，自动跳过已加入节点。<span v-if="keyword || region || protocol">包含其他筛选条件隐藏的节点。</span></p>
+   </div>
   </div>
   <div class="picker-list scroll-area">
    <label v-for="node in visible" :key="node.id" class="picker-row" :class="{added: disabledIds.has(node.id)}">
@@ -80,4 +91,7 @@ watch(pageCount, count => { if (page.value > count) page.value = count })
  </section>
 </template>
 <style scoped>.picker-filters{padding:14px 16px 0}.picker-filters>input{font-size:12px}.picker-filter-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:7px;margin-top:9px}.picker-filter-row.local-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.picker-group-action { margin-bottom: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-raised); }
+.picker-group-summary { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 11px; }
+.picker-group-action p { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .picker-filter-row :deep(select){font-size:10px;padding:7px 5px}.picker-meta{display:flex;justify-content:space-between;align-items:center;padding:10px 0;color:var(--muted);font-size:10px}.picker-list{min-height:292px;height:min(425px,50vh);padding:0 16px}.picker-row{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line-soft);padding:13px 1px;min-height:60px;cursor:pointer}.picker-row.added{background:var(--field);color:var(--muted)}.picker-row input{flex:none}.node-region{display:grid;place-items:center;width:31px;height:31px;flex:none;background:var(--surface-raised);color:var(--muted);border-radius:6px;font-size:10px}.picker-node{flex:1;min-width:0}.picker-node strong{display:block;font-size:11px;font-weight:500;overflow-wrap:anywhere}.picker-node small{display:block;overflow-wrap:anywhere;font-size:10px;color:var(--muted);margin-top:3px}.picker-row .tag{background:none;font-size:9px}.picker-row .tag.success{background:var(--success-bg)}.picker-pagination{display:flex;justify-content:space-between;padding:8px 16px;border-top:1px solid var(--line);font-size:11px}.panel-footer{font-size:11px}.panel-footer strong{color:var(--accent)}</style>

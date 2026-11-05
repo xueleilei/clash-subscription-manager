@@ -69,7 +69,14 @@ function addTargets(targets: TargetRef[]) {
  for (const target of targets) if (!seen.has(targetKey(target))) { next.push(target); seen.add(targetKey(target)) }
  changeMembers(next)
 }
-function addNodes() { const active = new Set(nodes.value.map(node => node.id)); addTargets([...selection.selectedIds.value].filter(id => active.has(id)).map(id => ({ kind: 'NODE', id, unresolvedName: null }))); selection.clear() }
+function addNodes(ids?: readonly string[]) {
+ if (!selectedGroup.value || busy.value) return
+ const requested = new Set(ids ?? selection.selectedIds.value), active = new Set(nodes.value.map(node => node.id))
+ const available = [...requested].filter(id => active.has(id) && !disabledIds.value.has(id))
+ if (available.length) addTargets(available.map(id => ({ kind: 'NODE', id, unresolvedName: null })))
+ if (ids) selection.selectedIds.value = new Set([...selection.selectedIds.value].filter(id => !requested.has(id)))
+ else selection.clear()
+}
 function reorder(from: number, to: number) { const members = [...(selectedGroup.value?.members ?? [])]; if (from < 0 || to < 0 || from >= members.length || to >= members.length) return; members.splice(to, 0, members.splice(from, 1)[0]!); changeMembers(members) }
 function editGroup(id: string | null) { editingId.value = id; groupOpen.value = true }
 function saveGroup(group: GroupDefinition) { changeGroups(groups.value.some(value => value.id === group.id) ? groups.value.map(value => value.id === group.id ? group : value) : [...groups.value, group]); selectedId.value = group.id; groupOpen.value = false }

@@ -17,7 +17,10 @@ async function prepare({ nodes = nodesFixture(), withApp = false, unpublishedNod
   if (path === '/session') return reply(method === 'GET' ? { id: owner, username: 'admin' } : null)
   if (path === '/profiles') return reply([{ ...profileFixture(), ...(unpublishedNodes ? { currentReleaseId: 'release-1', publishedVersion: '1', publishedDefinitionHash: 'hash-a', hasUnpublishedNodeChanges: true } : {}) }])
   if (path === '/sources') return reply([{ id: 's1', name: '云帆订阅' }, { id: 's2', name: '远山订阅' }])
-  if (path.startsWith('/nodes?')) return reply({ items: nodes, total: nodes.length, page: 1, size: 200 })
+  if (path.startsWith('/nodes?')) {
+   const page = Number(new URLSearchParams(path.split('?')[1]).get('page') ?? 1), size = 200
+   return reply({ items: nodes.slice((page - 1) * size, page * size), total: nodes.length, page, size })
+  }
   if (path === '/profiles/p1/draft' && method === 'GET') return reply(draftFixture('p1', '1', profileDocument))
   if (path === '/profiles/p1/draft' && method === 'PUT') { writes.push(body.document as ProfileDocument); return reply(draftFixture('p1', '2', body.document as ProfileDocument)) }
   throw new Error(`${method} ${path}`)
@@ -81,6 +84,64 @@ test('filters local candidates by their source group and keeps that label after 
  await expect.poll(() => writes[0]?.groups[0]?.members.map(member => member.id)).toEqual(['sjc'])
  await source.setValue('__LOCAL__')
  expect((wrapper.get(groupSelector).element as HTMLSelectElement).value).toBe('')
+})
+test('adds an entire local source group across pages, skips existing members and preserves unrelated selections', async () => {
+ const grouped = nodesFixture(254).map((node, index) => ({
+  ...node, sourceId: null, localGroupId: 'tag', localGroupName: 'TAG', protocol: index % 3 ? 'ss' : 'vmess',
+ }))
+ const sameName = grouped[0]!
+ const { wrapper, writes } = await prepare({ nodes: [
+  ...grouped, { ...sameName, id: 'sjc', localGroupId: 'sjc-group', localGroupName: '联通SJC' },
+  { ...sameName, id: 'loose', localGroupId: null, localGroupName: null },
+  { ...sameName, id: 'remote', sourceId: 's1', localGroupId: null, localGroupName: null },
+ ] })
+ const source = wrapper.get('[aria-label="候选节点来源"]')
+ const groupSelector = '[aria-label="候选节点本地分组"]'
+ const bulkSelector = '[aria-label="加入整个本地分组"]'
+ expect(wrapper.find(bulkSelector).exists()).toBe(false)
+ nodeCheckbox('n1').click()
+ await expect.poll(() => button('加入当前组').disabled).toBe(false)
+ button('加入当前组').click()
+ await expect.poll(() => wrapper.findAll('[data-member-row]').length).toBe(1)
+ await source.setValue('s1')
+ nodeCheckbox('remote').click()
+ await source.setValue('__LOCAL__')
+ expect(wrapper.find(bulkSelector).exists()).toBe(false)
+ await wrapper.get(groupSelector).setValue('tag')
+ nodeCheckbox('n2').click()
+ await wrapper.get('[aria-label="筛选候选节点"]').setValue('香港')
+ await wrapper.get('[aria-label="候选节点地区"]').setValue('HK')
+ await wrapper.get('[aria-label="候选节点协议"]').setValue('vmess')
+ expect(wrapper.get('.picker-group-action').text()).toContain('整组 254 个 · 可加入 253 个')
+ expect(wrapper.get('.picker-group-action').text()).toContain('包含其他筛选条件隐藏的节点')
+ button('加入整个本地分组').click()
+ await expect.poll(() => wrapper.findAll('[data-member-row]').length).toBe(254)
+ expect(button('加入整个本地分组').disabled).toBe(true)
+ expect(wrapper.get('.picker-group-action').text()).toContain('可加入 0 个')
+ expect(wrapper.get('.picker-column .panel-footer').text()).toContain('已选 1 个节点')
+ expect(writes).toHaveLength(0)
+ expect(documentBody()).toContain('未保存')
+ button('保存草稿').click()
+ await expect.poll(() => writes.length).toBe(1)
+ const groupedIds = grouped.map(node => node.id)
+ expect(writes[0]!.groups[0]!.members.map(member => member.id)).toEqual(groupedIds)
+ expect(writes[0]!.groups[1]!.members).toEqual([])
+ await source.setValue('s1')
+ expect(nodeCheckbox('remote').checked).toBe(true)
+ expect(nodeCheckbox('remote').disabled).toBe(false)
+ await source.setValue('__LOCAL__')
+ await wrapper.get(groupSelector).setValue('tag')
+ button('选择代理组 香港优选').click()
+ await expect.poll(() => button('加入整个本地分组').disabled).toBe(false)
+ button('加入整个本地分组').click()
+ await expect.poll(() => wrapper.findAll('[data-member-row]').length).toBe(254)
+ await wrapper.get(groupSelector).setValue('ungrouped')
+ button('加入整个本地分组').click()
+ await expect.poll(() => wrapper.findAll('[data-member-row]').length).toBe(255)
+ button('保存草稿').click()
+ await expect.poll(() => writes.length).toBe(2)
+ expect(writes[1]!.groups[0]!.members.map(member => member.id)).toEqual(groupedIds)
+ expect(writes[1]!.groups[1]!.members.map(member => member.id)).toEqual([...groupedIds, 'loose'])
 })
 test('members reorder/remove, nested groups reject cycles, and empty groups visibly fall back to REJECT', async () => {
  const { writes } = await prepare(); expect(documentBody()).toContain('空组 → REJECT')
