@@ -150,7 +150,7 @@ test('bulk removal follows selected member identities after reordering and affec
  profileDocument.groups[0]!.members = nodes.map(node => target('NODE', node.id))
  profileDocument.groups[1]!.members = [target('NODE', 'n1'), target('NODE', 'n2')]
  const { wrapper, writes } = await prepare({ nodes, profileDocument })
- const selectAll = () => wrapper.get<HTMLInputElement>('[aria-label="全选当前代理组成员"]').element
+ const selectAll = () => wrapper.get<HTMLInputElement>('[aria-label="全选当前组筛选结果"]').element
  expect(button('批量移除当前组成员').disabled).toBe(true)
  memberCheckbox('n1').click()
  await expect.poll(() => selectAll().indeterminate).toBe(true)
@@ -166,6 +166,7 @@ test('bulk removal follows selected member identities after reordering and affec
  expect(memberCheckbox('n1').checked).toBe(true)
  expect(memberCheckbox('n2').checked).toBe(false)
  expect(memberCheckbox('n3').checked).toBe(true)
+ expect(wrapper.get('.member-selection').text()).toContain('已选 2 / 4')
  button('批量移除当前组成员').click()
  await expect.poll(() => wrapper.findAll('[data-member-row]').map(row => row.attributes('data-member-key'))).toEqual(['NODE:n2:0', 'NODE:n4:0'])
  expect(wrapper.get('.member-selection').text()).toContain('已选 0 / 2')
@@ -186,7 +187,7 @@ test('select all covers the whole member list and clearing a group keeps its nod
  profileDocument.groups[0]!.members = [...nodes.map(node => target('NODE', node.id)), target('GROUP', 'g2'), target('DIRECT'), target('REJECT')]
  profileDocument.groups[1]!.members = [target('NODE', 'n1')]
  const { wrapper, writes } = await prepare({ nodes, profileDocument })
- const selectAll = wrapper.get<HTMLInputElement>('[aria-label="全选当前代理组成员"]')
+ const selectAll = wrapper.get<HTMLInputElement>('[aria-label="全选当前组筛选结果"]')
  await selectAll.setValue(true)
  expect(wrapper.get('.member-selection').text()).toContain('已选 57 / 57')
  expect(memberCheckbox('n54').checked).toBe(true)
@@ -212,6 +213,102 @@ test('select all covers the whole member list and clearing a group keeps its nod
  await expect.poll(() => writes.length).toBe(1)
  expect(writes[0]!.groups[0]!.members).toEqual([])
  expect(writes[0]!.groups[1]).toEqual(profileDocument.groups[1])
+})
+test('combines member name and source-group filters and removes only the selected matching references', async () => {
+ const nodes = nodesFixture(7), profileDocument = documentFixture()
+ for (const node of nodes) node.originalName = '香港 Alpha'
+ nodes[1] = { ...nodes[1]!, sourceId: null, localGroupId: 'tag', localGroupName: 'TAG' }
+ nodes[2] = { ...nodes[2]!, originalName: '日本 Beta', sourceId: null, localGroupId: 'tag', localGroupName: 'TAG' }
+ nodes[3] = { ...nodes[3]!, originalName: '香港 ALPHA 02', sourceId: null, localGroupId: 'tag', localGroupName: 'TAG' }
+ nodes[4] = { ...nodes[4]!, sourceId: null, localGroupId: 'sjc', localGroupName: '联通SJC' }
+ nodes[5] = { ...nodes[5]!, sourceId: null, localGroupId: null, localGroupName: null }
+ nodes[6] = { ...nodes[6]!, sourceId: 's2' }
+ profileDocument.groups[0]!.members = [...nodes.map(node => target('NODE', node.id)), target('DIRECT'), target('GROUP', 'g2')]
+ profileDocument.groups[1]!.members = [target('NODE', 'n2'), target('NODE', 'n4')]
+ const { wrapper, writes } = await prepare({ nodes, profileDocument })
+ const search = wrapper.get('[aria-label="搜索当前组成员名称"]')
+ const source = wrapper.get('[aria-label="当前组成员来源分组"]')
+ const selectAll = wrapper.get<HTMLInputElement>('[aria-label="全选当前组筛选结果"]')
+ const visibleKeys = () => wrapper.findAll('[data-member-row]').map(row => row.attributes('data-member-key'))
+ await new DOMWrapper(memberCheckbox('n1')).setValue(true)
+ await search.setValue(' ALPHA ')
+ expect(visibleKeys()).toEqual(['n1', 'n2', 'n4', 'n5', 'n6', 'n7'].map(id => `NODE:${id}:0`))
+ expect(wrapper.get('.member-filter-count').text()).toContain('匹配 6 / 共 9 个成员')
+ expect(memberCheckbox('n1').checked).toBe(false)
+ await source.setValue('local:tag')
+ expect(visibleKeys()).toEqual(['NODE:n2:0', 'NODE:n4:0'])
+ expect(wrapper.get<HTMLButtonElement>('[data-member-key="NODE:n2:0"] [aria-label^="上移"]').element.disabled).toBe(true)
+ await selectAll.setValue(true)
+ expect(wrapper.get('.member-selection').text()).toContain('已选 2 / 2')
+ await wrapper.get('[data-member-key="NODE:n4:0"] [aria-label^="上移"]').trigger('click')
+ expect(visibleKeys()).toEqual(['NODE:n4:0', 'NODE:n2:0'])
+ expect(memberCheckbox('n4').checked).toBe(true)
+ expect(memberCheckbox('n2').checked).toBe(true)
+ expect(wrapper.get('.member-selection').text()).toContain('已选 2 / 2')
+ await source.setValue('subscription:s1')
+ expect(visibleKeys()).toEqual(['NODE:n1:0'])
+ expect(button('批量移除当前组成员').disabled).toBe(true)
+ await selectAll.setValue(true)
+ await source.setValue('local:tag')
+ expect(wrapper.get('.member-selection').text()).toContain('已选 0 / 2')
+ await selectAll.setValue(true)
+ button('批量移除当前组成员').click()
+ await expect.poll(visibleKeys).toEqual([])
+ expect(wrapper.get('.member-column').text()).toContain('没有匹配的成员')
+ expect(wrapper.get('.member-column').text()).not.toContain('空组 → REJECT')
+ expect(wrapper.get('.member-filter-count').text()).toContain('匹配 0 / 共 7 个成员')
+ expect(selectAll.element.disabled).toBe(true)
+ expect(nodeCheckbox('n2').disabled).toBe(false)
+ expect(nodeCheckbox('n4').disabled).toBe(false)
+ expect(writes).toHaveLength(0)
+ button('清除成员筛选').click()
+ await expect.poll(() => visibleKeys().length).toBe(7)
+ expect(visibleKeys()).toContain('NODE:n1:0')
+ expect(visibleKeys()).toContain('NODE:n3:0')
+ button('保存草稿').click()
+ await expect.poll(() => writes.length).toBe(1)
+ expect(writes[0]!.groups[0]!.members).toEqual(profileDocument.groups[0]!.members.filter(member => member.id !== 'n2' && member.id !== 'n4'))
+ expect(writes[0]!.groups[1]).toEqual(profileDocument.groups[1])
+ expect(writes[0]!.rules).toEqual(profileDocument.rules)
+})
+test('member source filters distinguish ungrouped nodes and non-node references, and reset when switching proxy groups', async () => {
+ const nodes = nodesFixture(3), profileDocument = documentFixture()
+ nodes[0] = { ...nodes[0]!, sourceId: null, localGroupId: null, localGroupName: null }
+ nodes[1] = { ...nodes[1]!, sourceId: null, localGroupId: 's1', localGroupName: '云帆订阅' }
+ profileDocument.groups[0]!.members = [...nodes.map(node => target('NODE', node.id)), target('GROUP', 'g2'), target('DIRECT'), target('NODE', 'missing'), { kind: 'UNRESOLVED', id: null, unresolvedName: 'Legacy' }]
+ profileDocument.groups[1]!.members = [target('NODE', 'n1'), target('NODE', 'n2')]
+ const { wrapper } = await prepare({ nodes, profileDocument })
+ const search = wrapper.get<HTMLInputElement>('[aria-label="搜索当前组成员名称"]')
+ const source = wrapper.get<HTMLSelectElement>('[aria-label="当前组成员来源分组"]')
+ const visibleKeys = () => wrapper.findAll('[data-member-row]').map(row => row.attributes('data-member-key'))
+ await source.setValue('local:ungrouped')
+ await search.setValue('香港')
+ expect(visibleKeys()).toEqual(['NODE:n1:0'])
+ await wrapper.get('[aria-label="全选当前组筛选结果"]').setValue(true)
+ button('选择代理组 香港优选').click()
+ await expect.poll(() => search.element.value).toBe('')
+ expect(source.element.value).toBe('')
+ expect(visibleKeys()).toEqual(['NODE:n1:0', 'NODE:n2:0'])
+ expect(button('批量移除当前组成员').disabled).toBe(true)
+ await new DOMWrapper(button('选择代理组 AI 服务')).trigger('click')
+ await source.setValue('local:all')
+ expect(visibleKeys()).toEqual(['NODE:n1:0', 'NODE:n2:0'])
+ await source.setValue('local:s1')
+ expect(visibleKeys()).toEqual(['NODE:n2:0'])
+ await source.setValue('subscription:s1')
+ expect(visibleKeys()).toEqual(['NODE:n3:0'])
+ await source.setValue('')
+ await search.setValue('香港优选')
+ expect(visibleKeys()).toEqual(['GROUP:g2:0'])
+ await source.setValue('local:all')
+ expect(visibleKeys()).toEqual([])
+ await source.setValue('')
+ await search.setValue('direct')
+ expect(visibleKeys()).toEqual(['DIRECT::0'])
+ await search.setValue('已失效')
+ expect(visibleKeys()).toEqual(['NODE:missing:0'])
+ await search.setValue('legacy')
+ expect(visibleKeys()).toEqual(['UNRESOLVED:Legacy:0'])
 })
 test('members reorder/remove, nested groups reject cycles, and empty groups visibly fall back to REJECT', async () => {
  const { writes } = await prepare(); expect(documentBody()).toContain('空组 → REJECT')
