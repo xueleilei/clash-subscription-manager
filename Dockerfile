@@ -20,9 +20,11 @@ RUN --mount=type=cache,target=/root/.m2 --mount=type=secret,id=maven_settings,ta
 RUN ./tools/mihomo/fetch.sh "linux-$TARGETARCH" && javac -d /build/health deploy/HealthCheck.java
 
 FROM eclipse-temurin:21-jre-noble@sha256:0eda5830ed7b669abc246a8dc520ea8a23cab06f9a8d4b6964109e2f2394e46f
+LABEL org.opencontainers.image.licenses="GPL-3.0-only"
 ARG TARGETARCH
 RUN groupadd --gid 10001 clash && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin clash
 WORKDIR /opt/app
+COPY LICENSE /opt/app/LICENSE
 COPY --from=backend /build/backend/target/clash-subscription-manager-0.1.0-SNAPSHOT.jar /opt/app/app.jar
 COPY --from=backend /build/health/ /opt/app/health/
 COPY --from=backend /build/.cache/mihomo/linux-${TARGETARCH}/mihomo /opt/mihomo/mihomo

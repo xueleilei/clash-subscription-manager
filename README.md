@@ -10,7 +10,7 @@
 
 当前版本支持单管理员、多套配置方案，以及 **Docker Compose 配套 MySQL**、**连接已有 MySQL** 两种部署方式。
 
-[功能特性](#功能特性) · [快速开始](#快速开始) · [使用流程](#使用流程) · [开发与验证](#开发与验证) · [文档](#文档)
+[功能特性](#功能特性) · [快速开始](#快速开始) · [使用流程](#使用流程) · [开发与验证](#开发与验证) · [文档](#文档) · [开源协议](#开源协议)
 
 ## 界面预览
 
@@ -294,3 +294,13 @@ pnpm --dir frontend exec playwright install chromium
 | 发布订阅 | [发布版本与订阅链接](docs/operations/publishing.md) |
 | 格式兼容 | [输入协议矩阵](docs/operations/protocol-support.md) |
 | 开发接口 | [API 契约](docs/api/contracts.md) |
+
+## 开源协议
+
+Copyright (C) 2026 xueleilei and contributors.
+
+本项目原创代码采用 **GNU General Public License v3.0 only**（SPDX：`GPL-3.0-only`）发布，完整条款见 [LICENSE](LICENSE)。你可以按照 GPL 第 3 版的条款使用、修改和再分发本项目。
+
+本项目不提供任何担保，包括适销性或特定用途适用性的默示担保。具体权利、义务及担保限制以许可证全文为准。
+
+第三方依赖、Mihomo 内核及规则数据保留各自的许可证和版权声明。随仓库分发的规则数据及 GeoLite2 数据另见[资源来源与许可说明](tools/mihomo/resources/NOTICE.md)和[上游许可证](tools/mihomo/resources/UPSTREAM_LICENSE)。
